@@ -1,1 +1,158 @@
-<p1>TEST</p1>
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Audi Runner — Christmas Edition</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  html, body { margin:0; width:100%; height:100%; overflow:hidden; background:#071525; font-family:system-ui,-apple-system,Segoe UI,sans-serif; }
+  body { display:flex; align-items:center; justify-content:center; }
+  #wrap { position:relative; width:min(100vw, 520px); height:min(100dvh, 900px); aspect-ratio: 9 / 16; overflow:hidden; background:#102b45; }
+  canvas { width:100%; height:100%; display:block; touch-action:none; }
+  .hud { position:absolute; inset: env(safe-area-inset-top, 0) 0 auto 0; display:flex; justify-content:space-between; padding:14px 14px 0; pointer-events:none; gap:8px; }
+  .pill { background:#06111dcc; border:1px solid #ffffff2b; border-radius:14px; padding:8px 11px; color:white; font-weight:800; font-size:13px; letter-spacing:.3px; box-shadow:0 4px 16px #0004; }
+  .pill small { display:block; color:#b9d0df; font-size:9px; font-weight:700; letter-spacing:1px; }
+  #overlay { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; padding:24px; background:linear-gradient(#06152599,#061525dd); }
+  .panel { width:100%; max-width:390px; border:1px solid #ffffff35; border-radius:24px; padding:25px 22px; text-align:center; background:linear-gradient(145deg,#153b58f2,#071a2bf5); box-shadow:0 20px 60px #0008; color:white; }
+  .eyebrow { color:#9ed9ed; font-size:11px; letter-spacing:2px; font-weight:900; }
+  h1 { margin:8px 0 4px; font-size:clamp(27px,7vw,38px); line-height:1; }
+  .sub { color:#c3d6e2; font-size:14px; line-height:1.5; margin:12px 0 18px; }
+  button { pointer-events:auto; touch-action:manipulation; -webkit-tap-highlight-color:transparent; border:0; border-radius:14px; background:linear-gradient(135deg,#25a6d8,#1475b5); color:white; padding:14px 22px; font-weight:900; font-size:15px; letter-spacing:.4px; width:100%; box-shadow:0 7px 0 #07527c; cursor:pointer; }
+  button:active { transform:translateY(3px); box-shadow:0 4px 0 #07527c; }
+  .hint { color:#a9c4d4; font-size:11px; margin-top:14px; line-height:1.5; }
+  .finalmsg { font-size:17px; line-height:1.5; font-weight:800; margin:16px 0 20px; }
+  .hidden { display:none !important; }
+  #toast { position:absolute; left:50%; top:22%; transform:translateX(-50%); padding:8px 13px; border-radius:20px; color:#fff; background:#06111ddd; border:1px solid #ffffff44; font-weight:900; font-size:13px; opacity:0; transition:opacity .15s; pointer-events:none; white-space:nowrap; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="game" width="450" height="800" aria-label="Jogo Audi Runner"></canvas>
+  <div class="hud">
+    <div class="pill"><small>PONTUAÇÃO</small><span id="score">0</span></div>
+    <div class="pill"><small>PORTO</small><span id="coins">0</span></div>
+    <div class="pill"><small>POWER-UP</small><span id="power">—</span></div>
+  </div>
+  <div id="toast"></div>
+  <div id="overlay">
+    <div class="panel" id="startPanel">
+      <div class="eyebrow">CHRISTMAS EDITION</div>
+      <h1>AUDI RUNNER</h1>
+      <div style="font-size:54px;margin:13px 0 3px">🚘</div>
+      <div class="sub">Ao volante do Audi A3 8V cinzento.<br>Recolhe o FC Porto, ativa power-ups e evita os rivais… e o Excel.</div>
+      <button type="button" id="startBtn">COMEÇAR A JOGAR</button>
+      <div class="hint">Desliza para os lados para mudar de faixa · Para cima para saltar · Para baixo para deslizar<br>Também podes usar as setas do teclado.</div>
+    </div>
+    <div class="panel hidden" id="endPanel">
+      <div class="eyebrow">FIM DE JOGO</div>
+      <h1>FELIZ NATAL! 🎄</h1>
+      <div style="font-size:48px;margin:12px 0">🚘</div>
+      <div class="sub" id="result"></div>
+      <div class="finalmsg">feliz natal, desculpa mas a tua prenda vai desaparecer para nao ter de pagar custos de hospedagem</div>
+      <button type="button" id="againBtn">JOGAR OUTRA VEZ</button>
+    </div>
+  </div>
+</div>
+<script>
+(() => {
+const canvas = document.getElementById('game'), ctx = canvas.getContext('2d');
+const W=450,H=800, lanes=[145,225,305];
+const scoreEl=document.getElementById('score'), coinsEl=document.getElementById('coins'), powerEl=document.getElementById('power');
+const overlay=document.getElementById('overlay'), startPanel=document.getElementById('startPanel'), endPanel=document.getElementById('endPanel'), toastEl=document.getElementById('toast');
+let running=false, last=0, score=0, coins=0, lane=1, items=[], spawn=0, speed=300, playerY=650, jump=0, slide=0, power='', powerTime=0, roadOffset=0, toastTimer=0;
+const rand=(a,b)=>Math.random()*(b-a)+a;
+function toast(t){toastEl.textContent=t;toastEl.style.opacity=1;toastTimer=1.1;}
+function reset(){score=0;coins=0;lane=1;items=[];spawn=.6;speed=300;jump=0;slide=0;power='';powerTime=0;roadOffset=0;playerY=650;scoreEl.textContent='0';coinsEl.textContent='0';powerEl.textContent='—';}
+function start(){reset();overlay.classList.add('hidden');running=true;last=performance.now();requestAnimationFrame(loop);}
+function finish(){running=false;document.getElementById('result').textContent=`Percorreste ${Math.floor(score)} metros e apanhaste ${coins} emblemas do FC Porto.`;overlay.classList.remove('hidden');startPanel.classList.add('hidden');endPanel.classList.remove('hidden');}
+function rounded(x,y,w,h,r,fill,stroke){ctx.beginPath();ctx.roundRect(x,y,w,h,r);ctx.fillStyle=fill;ctx.fill();if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=3;ctx.stroke();}}
+function drawBackground(dt){
+  const g=ctx.createLinearGradient(0,0,0,H);g.addColorStop(0,'#153b58');g.addColorStop(.55,'#39718a');g.addColorStop(1,'#c2d4c9');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+  // winter skyline
+  for(let i=0;i<9;i++){let x=i*58-8;let bh=100+(i*37%95);ctx.fillStyle=i%2?'#1c3d52':'#244b5c';ctx.fillRect(x,250-bh*.35,48,bh);for(let wy=0;wy<4;wy++)for(let wx=0;wx<2;wx++){ctx.fillStyle='#f7d98b';ctx.globalAlpha=.6;ctx.fillRect(x+9+wx*18,260-bh*.35+wy*19,7,9);ctx.globalAlpha=1;}}
+  // snow
+  ctx.fillStyle='#eaf5f2'; for(let i=0;i<45;i++){let x=(i*83+roadOffset*.11)%W,y=(i*137+roadOffset*.35)%H;ctx.globalAlpha=.45;ctx.beginPath();ctx.arc(x,y,1.5+(i%3),0,Math.PI*2);ctx.fill();}ctx.globalAlpha=1;
+  // road perspective
+  ctx.fillStyle='#28343e';ctx.beginPath();ctx.moveTo(70,260);ctx.lineTo(380,260);ctx.lineTo(450,800);ctx.lineTo(0,800);ctx.closePath();ctx.fill();
+  ctx.fillStyle='#35444e';ctx.beginPath();ctx.moveTo(70,260);ctx.lineTo(92,260);ctx.lineTo(35,800);ctx.lineTo(0,800);ctx.fill();ctx.beginPath();ctx.moveTo(358,260);ctx.lineTo(380,260);ctx.lineTo(450,800);ctx.lineTo(415,800);ctx.fill();
+  // lane lines
+  ctx.strokeStyle='#e9e8d7';ctx.lineWidth=4;ctx.setLineDash([28,25]);ctx.lineDashOffset=-roadOffset%53;
+  for(let x of [183,267]){ctx.beginPath();ctx.moveTo(225+(x-225)*.24,260);ctx.lineTo(x,800);ctx.stroke();}ctx.setLineDash([]);
+  // festive garlands
+  ctx.strokeStyle='#d9b75d';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(0,245);ctx.quadraticCurveTo(225,295,450,245);ctx.stroke();
+  for(let i=0;i<11;i++){let x=i*45,y=245+Math.sin(i/10*Math.PI)*24;ctx.fillStyle=['#d94e4e','#f3d46b','#4ba879'][i%3];ctx.beginPath();ctx.arc(x,y,4,0,Math.PI*2);ctx.fill();}
+}
+function drawPorto(x,y,s=1){ctx.save();ctx.translate(x,y);ctx.scale(s,s);ctx.fillStyle='#f7f7f2';ctx.strokeStyle='#1462a3';ctx.lineWidth=4;ctx.beginPath();ctx.arc(0,0,20,0,Math.PI*2);ctx.fill();ctx.stroke();ctx.fillStyle='#0756a0';ctx.font='bold 12px sans-serif';ctx.textAlign='center';ctx.fillText('FCP',0,4);ctx.restore();}
+function drawRival(x,y,s,label,color){ctx.save();ctx.translate(x,y);ctx.scale(s,s);rounded(-25,-27,50,54,9,color,'#ffffff');ctx.fillStyle='#fff';ctx.textAlign='center';ctx.font='900 12px sans-serif';ctx.fillText(label,0,4);ctx.font='bold 8px sans-serif';ctx.fillText('RIVAL',0,17);ctx.restore();}
+function drawExcel(x,y,s){ctx.save();ctx.translate(x,y);ctx.scale(s,s);rounded(-23,-27,46,54,7,'#16834b','#d8f4e4');ctx.fillStyle='#fff';ctx.font='900 23px sans-serif';ctx.textAlign='center';ctx.fillText('X',0,8);ctx.font='bold 8px sans-serif';ctx.fillText('EXCEL',0,20);ctx.restore();}
+function drawHalter(x,y,s){ctx.save();ctx.translate(x,y);ctx.scale(s,s);ctx.strokeStyle='#d6e1e8';ctx.lineWidth=7;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(-18,0);ctx.lineTo(18,0);ctx.stroke();ctx.fillStyle='#8fa5b4';ctx.fillRect(-24,-13,9,26);ctx.fillRect(15,-13,9,26);ctx.restore();}
+function drawGuitar(x,y,s){ctx.save();ctx.translate(x,y);ctx.rotate(-.25);ctx.scale(s,s);ctx.fillStyle='#d7a34e';ctx.strokeStyle='#fff1ce';ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(0,10,12,17,0,0,Math.PI*2);ctx.fill();ctx.beginPath();ctx.ellipse(0,-3,10,12,0,0,Math.PI*2);ctx.fill();ctx.fillRect(-3,-34,6,35);ctx.fillStyle='#5c3822';ctx.fillRect(-1,-34,2,44);ctx.restore();}
+function drawCar(x,y){
+ ctx.save();ctx.translate(x,y+(jump? -Math.sin(jump*Math.PI)*95:0));let sy=slide?0.75:1;ctx.scale(1,sy);
+ // shadow
+ ctx.fillStyle='#07121b88';ctx.beginPath();ctx.ellipse(0,36,53,17,0,0,Math.PI*2);ctx.fill();
+ // wheels
+ ctx.fillStyle='#101820';rounded(-48,-1,18,45,7,'#101820');rounded(30,-1,18,45,7,'#101820');
+ // car body, rear-facing
+ ctx.fillStyle='#8e9aa3';ctx.strokeStyle='#dce3e7';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(-43,22);ctx.lineTo(-38,-35);ctx.quadraticCurveTo(-33,-55,-19,-59);ctx.lineTo(19,-59);ctx.quadraticCurveTo(33,-55,38,-35);ctx.lineTo(43,22);ctx.quadraticCurveTo(0,43,-43,22);ctx.fill();ctx.stroke();
+ // rear window
+ ctx.fillStyle='#233c4d';ctx.beginPath();ctx.moveTo(-29,-32);ctx.lineTo(-21,-51);ctx.quadraticCurveTo(0,-57,21,-51);ctx.lineTo(29,-32);ctx.closePath();ctx.fill();
+ // rear lights
+ rounded(-36,-24,10,22,3,'#d84c4c');rounded(26,-24,10,22,3,'#d84c4c');
+ // trunk + plate
+ ctx.fillStyle='#aeb8bf';ctx.fillRect(-25,-7,50,20);rounded(-12,-1,24,10,2,'#f3f3ec');ctx.fillStyle='#26323a';ctx.font='bold 7px sans-serif';ctx.textAlign='center';ctx.fillText('A3',0,7);
+ // rings
+ ctx.strokeStyle='#eef2f4';ctx.lineWidth=1.6;for(let i=0;i<4;i++){ctx.beginPath();ctx.ellipse(-7+i*5,17,5,3,0,0,Math.PI*2);ctx.stroke();}
+ ctx.restore();
+}
+function spawnItem(){
+ const r=Math.random(),ln=Math.floor(rand(0,3));let type;
+ if(r<.34) type='porto'; else if(r<.48) type='excel'; else if(r<.64) type='benfica'; else if(r<.79) type='sporting'; else if(r<.9) type='halter'; else type='guitar';
+ items.push({lane:ln,y:260,type,passed:false});
+}
+function drawItem(it){let t=(it.y-260)/540,s=.35+t*.85,x=225+(lanes[it.lane]-225)*(.24+t*.76);if(it.type==='porto')drawPorto(x,it.y,s);if(it.type==='benfica')drawRival(x,it.y,s,'SLB','#c92535');if(it.type==='sporting')drawRival(x,it.y,s,'SCP','#16834b');if(it.type==='excel')drawExcel(x,it.y,s);if(it.type==='halter')drawHalter(x,it.y,s);if(it.type==='guitar')drawGuitar(x,it.y,s);}
+function update(dt){
+ score+=dt*10;speed=Math.min(560,speed+dt*3);roadOffset+=speed*dt;
+ spawn-=dt;if(spawn<=0){spawnItem();spawn=rand(.55,.95)*Math.max(.55,330/speed);}
+ if(powerTime>0){powerTime-=dt;if(powerTime<=0){power='';powerEl.textContent='—';}}
+ if(jump>0)jump=Math.max(0,jump-dt*1.65);if(slide>0)slide=Math.max(0,slide-dt*1.8);
+ for(let i=items.length-1;i>=0;i--){let it=items[i];it.y+=speed*dt;
+  if(it.y>600&&it.y<710&&it.lane===lane&&!it.passed){
+   it.passed=true;
+   if(it.type==='porto'){coins++;score+=25;toast('+25 · FC PORTO');}
+   else if(it.type==='excel'){score=Math.max(0,score-50);toast('−50 · EXCEL');}
+   else if(it.type==='halter'){power='GYM';powerTime=5;toast('POWER-UP · GYM 💪');}
+   else if(it.type==='guitar'){power='OASIS';powerTime=5;toast('POWER-UP · OASIS 🎸');}
+   else {if(powerTime>0){toast('POWER-UP SALVOU-TE!');}else{finish();return;}}
+  }
+  if(it.y>850)items.splice(i,1);
+ }
+ scoreEl.textContent=Math.floor(score);coinsEl.textContent=coins;
+ powerEl.textContent=power?power+' '+Math.ceil(powerTime)+'s':'—';
+ if(toastTimer>0){toastTimer-=dt;if(toastTimer<=0)toastEl.style.opacity=0;}
+}
+function draw(){
+ drawBackground(0);
+ // distant decorations/trees
+ for(let side of [0,1])for(let i=0;i<4;i++){let x=side?405-i*18:45+i*18,y=330+i*115;ctx.fillStyle='#174d45';ctx.beginPath();ctx.moveTo(x,y-27);ctx.lineTo(x-17,y+8);ctx.lineTo(x+17,y+8);ctx.closePath();ctx.fill();ctx.fillStyle='#8b5e3c';ctx.fillRect(x-3,y+8,6,12);}
+ items.sort((a,b)=>a.y-b.y).forEach(drawItem);
+ drawCar(lanes[lane],playerY);
+}
+function loop(now){if(!running)return;let dt=Math.min(.035,(now-last)/1000);last=now;update(dt);if(running){draw();requestAnimationFrame(loop);}}
+function move(d){if(!running)return;if(d==='left')lane=Math.max(0,lane-1);if(d==='right')lane=Math.min(2,lane+1);if(d==='up'&&jump===0){jump=1;}if(d==='down')slide=.8;}
+const startBtn=document.getElementById('startBtn');
+startBtn.addEventListener('click',start);
+startBtn.addEventListener('pointerup',e=>{e.preventDefault();start();});
+const againBtn=document.getElementById('againBtn');
+const replay=()=>{startPanel.classList.remove('hidden');endPanel.classList.add('hidden');start();};
+againBtn.addEventListener('click',replay);
+againBtn.addEventListener('pointerup',e=>{e.preventDefault();replay();});
+window.addEventListener('keydown',e=>{if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown',' '].includes(e.key))e.preventDefault();if(e.key==='ArrowLeft'||e.key==='a')move('left');if(e.key==='ArrowRight'||e.key==='d')move('right');if(e.key==='ArrowUp'||e.key==='w'||e.key===' ')move('up');if(e.key==='ArrowDown'||e.key==='s')move('down');});
+let sx=0,sy=0;canvas.addEventListener('pointerdown',e=>{sx=e.clientX;sy=e.clientY;});
+canvas.addEventListener('pointerup',e=>{let dx=e.clientX-sx,dy=e.clientY-sy;if(Math.max(Math.abs(dx),Math.abs(dy))<18)return;if(Math.abs(dx)>Math.abs(dy))move(dx<0?'left':'right');else move(dy<0?'up':'down');});
+draw();
+})();
+</script>
+</body>
