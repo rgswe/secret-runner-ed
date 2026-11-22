@@ -1,0 +1,622 @@
+(() => {
+  // ---------------------------------------------------------------------------
+  // Canvas and DOM references
+  // ---------------------------------------------------------------------------
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+
+  const W = 450;
+  const H = 800;
+  const lanes = [75, 225, 375];
+
+  const ROAD_VANISH_Y = 170;
+  const ROAD_SPAWN_Y = 300;
+  const ROAD_PLAYER_Y = 650;
+  const ROAD_PLAYER_DEPTH = ROAD_PLAYER_Y - ROAD_VANISH_Y;
+  const ROAD_WIDTH_SCALE = 2.1;
+
+  const scoreEl = document.getElementById('score');
+  const coinsEl = document.getElementById('coins');
+  const powerEl = document.getElementById('power');
+  const overlay = document.getElementById('overlay');
+  const startPanel = document.getElementById('startPanel');
+  const endPanel = document.getElementById('endPanel');
+  const toastEl = document.getElementById('toast');
+
+  // ---------------------------------------------------------------------------
+  // Game state
+  // ---------------------------------------------------------------------------
+  let running = false;
+  let last = 0;
+  let score = 0;
+  let coins = 0;
+  let lane = 1;
+  let items = [];
+  let particles = [];
+  let shockwaves = [];
+  let spawn = 0;
+  let speed = 300;
+  let playerY = 650;
+  let jump = 0;
+  let slide = 0;
+  let power = '';
+  let powerTime = 0;
+  let roadOffset = 0;
+  let toastTimer = 0;
+  let animTime = 0;
+  let carLean = 0;
+  let crashing = false;
+  let crashTimer = 0;
+
+  // Load local SVG illustrations used by the canvas.
+  const art = {};
+  const assetPaths = {
+    porto: 'assets/collectibles/fcp.svg',
+    benfica: 'assets/obstacles/slb.svg',
+    sporting: 'assets/obstacles/scp.svg',
+    halter: 'assets/powerup/halter.svg',
+    car: 'assets/car/audi-a3-8v-rear.svg',
+  };
+
+  for (const [name, src] of Object.entries(assetPaths)) {
+    const image = new Image();
+    image.src = src;
+    art[name] = image;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Small utilities and game lifecycle
+  // ---------------------------------------------------------------------------
+  const rand = (min, max) => Math.random() * (max - min) + min;
+  const roadBottomX = (x, scale = 1) =>
+    225 + (x - 225) * scale * (H - ROAD_VANISH_Y) / ROAD_PLAYER_DEPTH;
+
+  function toast(message) {
+    toastEl.textContent = message;
+    toastEl.style.opacity = 1;
+    toastTimer = 1.1;
+  }
+
+  function reset() {
+    score = 0;
+    coins = 0;
+    lane = 1;
+    items = [];
+    particles = [];
+    shockwaves = [];
+    spawn = 0.6;
+    speed = 300;
+    jump = 0;
+    slide = 0;
+    power = '';
+    powerTime = 0;
+    roadOffset = 0;
+    playerY = 650;
+    animTime = 0;
+    carLean = 0;
+    crashing = false;
+    crashTimer = 0;
+
+    scoreEl.textContent = '0';
+    coinsEl.textContent = '0';
+    powerEl.textContent = '—';
+  }
+
+  function start() {
+    reset();
+    overlay.classList.add('hidden');
+    running = true;
+    last = performance.now();
+    requestAnimationFrame(loop);
+  }
+
+  function finish() {
+    running = false;
+    document.getElementById('result').textContent =
+      `Percorreste ${Math.floor(score)} metros e apanhaste ${coins} emblemas do FC Porto.`;
+    overlay.classList.remove('hidden');
+    startPanel.classList.add('hidden');
+    endPanel.classList.remove('hidden');
+  }
+
+  // ---------------------------------------------------------------------------
+  // Canvas drawing helpers and visual effects
+  // ---------------------------------------------------------------------------
+  function rounded(x, y, width, height, radius, fill, stroke) {
+    ctx.beginPath();
+    ctx.roundRect(x, y, width, height, radius);
+    ctx.fillStyle = fill;
+    ctx.fill();
+
+    if (stroke) {
+      ctx.strokeStyle = stroke;
+      ctx.lineWidth = 3;
+      ctx.stroke();
+    }
+  }
+
+  function burst(x, y, color, count = 12) {
+    for (let i = 0; i < count; i += 1) {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = rand(45, 190);
+      const life = rand(0.28, 0.62);
+
+      particles.push({
+        x,
+        y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        life,
+        max: life,
+        size: rand(2, 5),
+        color,
+      });
+    }
+  }
+
+  function updateParticles(dt) {
+    for (let i = particles.length - 1; i >= 0; i -= 1) {
+      const particle = particles[i];
+      particle.life -= dt;
+      particle.x += particle.vx * dt;
+      particle.y += particle.vy * dt;
+      particle.vy += 150 * dt;
+      particle.vx *= Math.pow(0.35, dt);
+
+      if (particle.life <= 0) {
+        particles.splice(i, 1);
+      }
+    }
+
+    for (let i = shockwaves.length - 1; i >= 0; i -= 1) {
+      const wave = shockwaves[i];
+      wave.life -= dt;
+      wave.radius += dt * 260;
+
+      if (wave.life <= 0) {
+        shockwaves.splice(i, 1);
+      }
+    }
+  }
+
+  function drawParticles() {
+    for (const wave of shockwaves) {
+      const alpha = Math.max(0, wave.life / wave.max);
+      ctx.globalAlpha = alpha;
+      ctx.strokeStyle = wave.color;
+      ctx.lineWidth = 5 * alpha + 1;
+      ctx.shadowColor = wave.color;
+      ctx.shadowBlur = 16;
+      ctx.beginPath();
+      ctx.arc(wave.x, wave.y, wave.radius, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    for (const particle of particles) {
+      const alpha = Math.max(0, particle.life / particle.max);
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = particle.color;
+      ctx.shadowColor = particle.color;
+      ctx.shadowBlur = 8;
+      ctx.beginPath();
+      ctx.arc(
+        particle.x,
+        particle.y,
+        particle.size * (0.65 + 0.5 * alpha),
+        0,
+        Math.PI * 2,
+      );
+      ctx.fill();
+    }
+
+    ctx.globalAlpha = 1;
+    ctx.shadowBlur = 0;
+  }
+
+  function impact(x, y) {
+    shockwaves.push({ x, y, radius: 8, life: 0.34, max: 0.34, color: '#b9fff1' });
+    shockwaves.push({ x, y, radius: 4, life: 0.26, max: 0.26, color: '#ffd36b' });
+    burst(x, y, '#ffd36b', 26);
+    burst(x, y, '#ff815c', 18);
+    burst(x, y, '#b9fff1', 12);
+  }
+
+  function drawBackground() {
+    const gradient = ctx.createLinearGradient(0, 0, 0, H);
+    gradient.addColorStop(0, '#153b58');
+    gradient.addColorStop(0.55, '#39718a');
+    gradient.addColorStop(1, '#c2d4c9');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, W, H);
+
+    // Winter skyline and lit windows.
+    for (let i = 0; i < 9; i += 1) {
+      const x = i * 58 - 8;
+      const buildingHeight = 100 + (i * 37 % 95);
+      ctx.fillStyle = i % 2 ? '#1c3d52' : '#244b5c';
+      ctx.fillRect(x, 250 - buildingHeight * 0.35, 48, buildingHeight);
+
+      for (let windowY = 0; windowY < 4; windowY += 1) {
+        for (let windowX = 0; windowX < 2; windowX += 1) {
+          ctx.fillStyle = '#f7d98b';
+          ctx.globalAlpha = 0.6;
+          ctx.fillRect(
+            x + 9 + windowX * 18,
+            260 - buildingHeight * 0.35 + windowY * 19,
+            7,
+            9,
+          );
+          ctx.globalAlpha = 1;
+        }
+      }
+    }
+
+    // Snow moves with the road offset to make the scene feel animated.
+    ctx.fillStyle = '#eaf5f2';
+    for (let i = 0; i < 45; i += 1) {
+      const x = (i * 83 + roadOffset * 0.11) % W;
+      const y = (i * 137 + roadOffset * 0.35) % H;
+      ctx.globalAlpha = 0.45;
+      ctx.beginPath();
+      ctx.arc(x, y, 1.5 + (i % 3), 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+
+    // Perspective road and shoulders share a centered vanishing point.
+    ctx.fillStyle = '#28343e';
+    ctx.beginPath();
+    ctx.moveTo(225, ROAD_VANISH_Y);
+    ctx.lineTo(roadBottomX(450, ROAD_WIDTH_SCALE), H);
+    ctx.lineTo(roadBottomX(0, ROAD_WIDTH_SCALE), H);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.fillStyle = '#35444e';
+    ctx.beginPath();
+    ctx.moveTo(225, ROAD_VANISH_Y);
+    ctx.lineTo(roadBottomX(35, ROAD_WIDTH_SCALE), H);
+    ctx.lineTo(roadBottomX(0, ROAD_WIDTH_SCALE), H);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.moveTo(225, ROAD_VANISH_Y);
+    ctx.lineTo(roadBottomX(450, ROAD_WIDTH_SCALE), H);
+    ctx.lineTo(roadBottomX(415, ROAD_WIDTH_SCALE), H);
+    ctx.closePath();
+    ctx.fill();
+
+    // Lane dividers scroll down the screen as the car advances.
+    ctx.strokeStyle = '#e9e8d7';
+    ctx.lineWidth = 3;
+    ctx.setLineDash([24, 32]);
+    ctx.lineDashOffset = -roadOffset % 56;
+
+    for (const x of [150, 300]) {
+      ctx.beginPath();
+      ctx.moveTo(225, ROAD_VANISH_Y);
+      ctx.lineTo(roadBottomX(x), H);
+      ctx.stroke();
+    }
+    ctx.setLineDash([]);
+
+    // Christmas garland above the road.
+    ctx.strokeStyle = '#d9b75d';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(0, 245);
+    ctx.quadraticCurveTo(225, 295, 450, 245);
+    ctx.stroke();
+
+    for (let i = 0; i < 11; i += 1) {
+      const x = i * 45;
+      const y = 245 + Math.sin(i / 10 * Math.PI) * 24;
+      ctx.fillStyle = ['#d94e4e', '#f3d46b', '#4ba879'][i % 3];
+      ctx.beginPath();
+      ctx.arc(x, y, 4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  function drawWindEffect() {
+    if (powerTime <= 0 || crashing) return;
+
+    ctx.save();
+    ctx.strokeStyle = '#d8f7ff';
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+
+    for (let i = 0; i < 22; i += 1) {
+      const targetX = (i * 97) % W;
+      const progress = (i * 0.19 + animTime * 0.7) % 1;
+      const endProgress = Math.min(1, progress + 0.025 + progress * 0.055);
+      const startX = 225 + (targetX - 225) * progress;
+      const startY = ROAD_VANISH_Y + (H - ROAD_VANISH_Y) * progress;
+      const endX = 225 + (targetX - 225) * endProgress;
+      const endY = ROAD_VANISH_Y + (H - ROAD_VANISH_Y) * endProgress;
+      const alpha = 0.2 + (i % 3) * 0.08;
+
+      ctx.globalAlpha = alpha;
+      ctx.beginPath();
+      ctx.moveTo(startX, startY);
+      ctx.lineTo(endX, endY);
+      ctx.stroke();
+    }
+
+    ctx.restore();
+  }
+
+  function drawAsset(name, x, y, width, height, rotation = 0) {
+    const image = art[name];
+    if (!image?.complete || !image.naturalWidth) return;
+
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(rotation);
+
+    // A soft ground shadow gives the flat SVGs a little depth without changing hitboxes.
+    ctx.shadowColor = '#020a10aa';
+    ctx.shadowBlur = Math.max(4, width * 0.13);
+    ctx.shadowOffsetY = Math.max(3, height * 0.055);
+    ctx.drawImage(image, -width / 2, -height / 2, width, height);
+    ctx.restore();
+  }
+
+  function drawCar(x, y) {
+    const width = 130;
+    const height = 145;
+    const carY = y - 8
+      + (jump ? -Math.sin(jump * Math.PI) * 95 : 0)
+      + Math.sin(animTime * 4) * 0.8;
+    const shake = crashing ? Math.sin(animTime * 65) * 7 : 0;
+    const drawY = carY + (crashing ? Math.sin(animTime * 40) * 3 : 0);
+    const rotation = carLean
+      + Math.sin(animTime * 2) * 0.006
+      + (crashing ? Math.sin(animTime * 24) * 0.1 : 0);
+
+    if (crashing && Math.floor(animTime * 18) % 2 === 0) {
+      ctx.globalAlpha = 0.55;
+    }
+
+    drawAsset('car', x + shake, drawY, width, height, rotation);
+    ctx.globalAlpha = 1;
+
+    if (powerTime > 0 && !crashing) {
+      drawNitro(x + shake, drawY, rotation);
+    }
+  }
+
+  function drawNitro(x, y, rotation) {
+    const flicker = Math.sin(animTime * 31) * 2.5 + Math.sin(animTime * 19) * 1.5;
+
+    // The Audi's twin exhausts sit on the left side of its rear bumper.
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(rotation);
+
+    for (const offset of [-34, -28]) {
+      const baseY = 52;
+      const length = 25 + flicker;
+
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.shadowColor = '#36d9ff';
+      ctx.shadowBlur = 13;
+      ctx.fillStyle = '#39dfff';
+      ctx.beginPath();
+      ctx.moveTo(offset - 3, baseY);
+      ctx.quadraticCurveTo(offset - 5, baseY + length * 0.48, offset, baseY + length);
+      ctx.quadraticCurveTo(offset + 5, baseY + length * 0.48, offset + 3, baseY);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.fillStyle = '#e8fdff';
+      ctx.beginPath();
+      ctx.moveTo(offset - 1.2, baseY);
+      ctx.quadraticCurveTo(offset - 2, baseY + length * 0.38, offset, baseY + length * 0.72);
+      ctx.quadraticCurveTo(offset + 2, baseY + length * 0.38, offset + 1.2, baseY);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    }
+
+    ctx.restore();
+  }
+
+  function drawItem(item) {
+    const progress = Math.max(0, (item.y - ROAD_VANISH_Y) / ROAD_PLAYER_DEPTH);
+    const scale = 0.28 + Math.min(1, progress) * 0.82;
+    const x = 225 + (lanes[item.lane] - 225) * progress;
+    const size = item.type === 'halter' ? 78 : 62;
+    const bob = Math.sin(animTime * 2.8 + item.lane * 1.7 + item.y * 0.008)
+      * Math.min(1.5, 0.5 + scale * 0.5);
+    const tilt = Math.sin(animTime * 1.8 + item.y * 0.006 + item.lane) * 0.025;
+
+    drawAsset(item.type, x, item.y + bob, size * scale, size * 1.15 * scale, tilt);
+  }
+
+  function draw() {
+    drawBackground();
+    drawWindEffect();
+    items.sort((a, b) => a.y - b.y).forEach(drawItem);
+    drawCar(lanes[lane], playerY);
+    drawParticles();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Items, scoring, collisions, and frame updates
+  // ---------------------------------------------------------------------------
+  function spawnItem() {
+    const roll = Math.random();
+    const itemLane = Math.floor(rand(0, 3));
+    let type;
+
+    if (roll < 0.4) type = 'porto';
+    else if (roll < 0.6) type = 'benfica';
+    else if (roll < 0.8) type = 'sporting';
+    else type = 'halter';
+
+    items.push({ lane: itemLane, y: ROAD_SPAWN_Y, type, passed: false });
+  }
+
+  function update(dt) {
+    animTime += dt;
+    speed = Math.min(500, 300 + score * 0.28);
+    const gameSpeed = speed * (powerTime > 0 ? 1.3 : 1);
+    score += dt * gameSpeed / 30;
+
+    const roadMotion = crashing
+      ? Math.max(0, Math.min(1, (crashTimer - 0.4) / 0.22))
+      : 1;
+    roadOffset += gameSpeed * dt * roadMotion;
+
+    const leanTarget = lane === 0 ? -0.025 : lane === 2 ? 0.025 : 0;
+    carLean += (leanTarget - carLean) * Math.min(1, dt * 8);
+    updateParticles(dt);
+
+    if (crashing) {
+      crashTimer -= dt;
+      if (crashTimer <= 0) finish();
+      return;
+    }
+
+    spawn -= dt;
+    if (spawn <= 0) {
+      spawnItem();
+      spawn = rand(0.55, 0.95) * Math.max(0.55, 330 / gameSpeed);
+    }
+
+    if (powerTime > 0) {
+      powerTime -= dt;
+      if (powerTime <= 0) {
+        power = '';
+        powerEl.textContent = '—';
+      }
+    }
+
+    if (jump > 0) jump = Math.max(0, jump - dt * 1.65);
+    if (slide > 0) slide = Math.max(0, slide - dt * 1.8);
+
+    for (let i = items.length - 1; i >= 0; i -= 1) {
+      const item = items[i];
+      item.y += gameSpeed * dt;
+
+      if (item.y > 600 && item.y < 710 && item.lane === lane && !item.passed) {
+        item.passed = true;
+        items.splice(i, 1);
+
+        if (item.type === 'porto') {
+          coins += 1;
+          score += 25;
+          burst(lanes[lane], item.y, '#38bdf8', 14);
+          toast('+25 · FC PORTO');
+        } else if (item.type === 'halter') {
+          power = 'GYM';
+          powerTime = 5;
+          burst(lanes[lane], item.y, '#f3d46b', 18);
+          toast('POWER-UP · GYM 💪');
+        } else if (powerTime > 0) {
+          impact(lanes[lane], playerY - 8);
+          toast('POWER-UP SALVOU-TE!');
+        } else {
+          crashing = true;
+          crashTimer = 0.62;
+          burst(lanes[lane], playerY - 8, '#ff805c', 26);
+          burst(lanes[lane], playerY - 8, '#f3d46b', 12);
+          return;
+        }
+      }
+
+      if (item.y > 850) {
+        items.splice(i, 1);
+      }
+    }
+
+    scoreEl.textContent = Math.floor(score);
+    coinsEl.textContent = coins;
+    powerEl.textContent = power ? `${power} ${Math.ceil(powerTime)}s` : '—';
+
+    if (toastTimer > 0) {
+      toastTimer -= dt;
+      if (toastTimer <= 0) toastEl.style.opacity = 0;
+    }
+  }
+
+  function loop(now) {
+    if (!running) return;
+
+    const dt = Math.min(0.035, (now - last) / 1000);
+    last = now;
+    update(dt);
+
+    if (running) {
+      draw();
+      requestAnimationFrame(loop);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Controls and button handlers
+  // ---------------------------------------------------------------------------
+  function move(direction) {
+    if (!running) return;
+
+    if (direction === 'left') {
+      lane = Math.max(0, lane - 1);
+      carLean = -0.09;
+    }
+    if (direction === 'right') {
+      lane = Math.min(2, lane + 1);
+      carLean = 0.09;
+    }
+    if (direction === 'up' && jump === 0) jump = 1;
+    if (direction === 'down') slide = 0.8;
+  }
+
+  const startBtn = document.getElementById('startBtn');
+  startBtn.addEventListener('click', start);
+
+  const againBtn = document.getElementById('againBtn');
+  const replay = () => {
+    startPanel.classList.remove('hidden');
+    endPanel.classList.add('hidden');
+    start();
+  };
+  againBtn.addEventListener('click', replay);
+
+  window.addEventListener('keydown', (event) => {
+    if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', ' '].includes(event.key)) {
+      event.preventDefault();
+    }
+
+    if (event.key === 'ArrowLeft' || event.key === 'a') move('left');
+    if (event.key === 'ArrowRight' || event.key === 'd') move('right');
+    if (event.key === 'ArrowUp' || event.key === 'w' || event.key === ' ') move('up');
+    if (event.key === 'ArrowDown' || event.key === 's') move('down');
+  });
+
+  let startX = 0;
+  let startY = 0;
+
+  canvas.addEventListener('pointerdown', (event) => {
+    startX = event.clientX;
+    startY = event.clientY;
+  });
+
+  canvas.addEventListener('pointerup', (event) => {
+    const dx = event.clientX - startX;
+    const dy = event.clientY - startY;
+
+    if (Math.max(Math.abs(dx), Math.abs(dy)) < 18) return;
+
+    if (Math.abs(dx) > Math.abs(dy)) {
+      move(dx < 0 ? 'left' : 'right');
+    } else {
+      move(dy < 0 ? 'up' : 'down');
+    }
+  });
+
+  // Draw the static scene before the player starts.
+  draw();
+})();

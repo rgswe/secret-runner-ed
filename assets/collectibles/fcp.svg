@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 360" role="img" aria-labelledby="title desc">
+<title id="title">Camisola azul e branca inspirada no FC Porto</title>
+<desc id="desc">Ilustração vetorial original de uma camisola de futebol às riscas verticais azuis e brancas, com gola azul e iniciais FCP.</desc>
+<defs>
+ <clipPath id="body"><path d="M104 48 69 62 22 111 54 163 83 146 83 326 Q160 347 237 326 L237 146 266 163 298 111 251 62 216 48 Q201 78 160 78T104 48Z"/></clipPath>
+ <linearGradient id="shade" x2="1"><stop stop-color="#000" stop-opacity=".13"/><stop offset=".18" stop-color="#fff" stop-opacity=".10"/><stop offset=".8" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".16"/></linearGradient>
+</defs>
+<path d="M104 48 69 62 22 111 54 163 83 146 83 326 Q160 347 237 326 L237 146 266 163 298 111 251 62 216 48 Q201 78 160 78T104 48Z" fill="#0755a5" stroke="#073d78" stroke-width="5" stroke-linejoin="round"/>
+<g clip-path="url(#body)">
+ <path d="M65 30h38v330H65zm76 0h38v330h-38zm76 0h38v330h-38z" fill="#fff"/>
+ <path d="M0 0h320v360H0z" fill="url(#shade)"/>
+</g>
+<path d="M104 48Q160 104 216 48" fill="none" stroke="#073d78" stroke-width="9"/>
+<path d="M125 54Q160 78 195 54" fill="none" stroke="#fff" stroke-width="5"/>
+<path d="M22 111 54 163 83 146M298 111 266 163 237 146" fill="none" stroke="#fff" stroke-width="4"/>
+<path d="M136 111h48l-4 37h-40z" fill="#fff" stroke="#0755a5" stroke-width="3"/>
+<text x="160" y="137" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="bold" fill="#0755a5">FCP</text>
+<text x="160" y="230" text-anchor="middle" font-family="Arial,sans-serif" font-size="25" font-weight="bold" letter-spacing="1" fill="#fff" stroke="#0755a5" stroke-width="1">PORTO</text>
+</svg>

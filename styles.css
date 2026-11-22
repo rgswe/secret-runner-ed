@@ -1,0 +1,250 @@
+:root {
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #071525;
+  font-family: system-ui, -apple-system, Segoe UI, sans-serif;
+}
+
+body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#wrap {
+  position: relative;
+  width: min(100vw, 520px);
+  height: min(100dvh, 900px);
+  aspect-ratio: 9 / 16;
+  overflow: hidden;
+  background: #102b45;
+}
+
+canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;
+}
+
+.hud {
+  position: absolute;
+  inset: env(safe-area-inset-top, 0) 0 auto 0;
+  display: flex;
+  justify-content: space-between;
+  padding: 14px 14px 0;
+  pointer-events: none;
+  gap: 8px;
+}
+
+.pill {
+  background: linear-gradient(145deg, #10283bdc, #06111dee);
+  border: 1px solid #ffffff35;
+  border-radius: 14px;
+  padding: 8px 11px;
+  color: white;
+  font-weight: 800;
+  font-size: 13px;
+  letter-spacing: 0.3px;
+  box-shadow: 0 5px 0 #020a12aa, 0 10px 20px #0005, inset 0 1px #ffffff18;
+}
+
+.pill small {
+  display: block;
+  color: #b9d0df;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+#overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: linear-gradient(#06152599, #061525dd);
+}
+
+.panel {
+  width: 100%;
+  max-width: 390px;
+  border: 1px solid #ffffff40;
+  border-radius: 24px;
+  padding: 25px 22px;
+  text-align: center;
+  background: linear-gradient(145deg, #1b4865f5, #071a2bf8);
+  box-shadow: 0 25px 0 #020a1260, 0 35px 65px #0009, inset 0 1px #ffffff20;
+  color: white;
+  animation: panel-arrive 0.4s ease-out both;
+}
+
+.eyebrow {
+  color: #9ed9ed;
+  font-size: 11px;
+  letter-spacing: 2px;
+  font-weight: 900;
+}
+
+h1 {
+  margin: 8px 0 4px;
+  font-size: clamp(27px, 7vw, 38px);
+  line-height: 1;
+}
+
+.hero-car {
+  display: inline-block;
+  font-size: 54px;
+  margin: 13px 0 3px;
+  filter: drop-shadow(0 9px 4px #02091199);
+  animation: car-float 2.8s ease-in-out infinite;
+  transform-origin: 50% 75%;
+}
+
+.end-car {
+  font-size: 48px;
+  margin: 12px 0;
+}
+
+.sub {
+  color: #c3d6e2;
+  font-size: 14px;
+  line-height: 1.5;
+  margin: 12px 0 18px;
+}
+
+button {
+  pointer-events: auto;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  border: 0;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #25a6d8, #1475b5);
+  color: white;
+  padding: 14px 22px;
+  font-weight: 900;
+  font-size: 15px;
+  letter-spacing: 0.4px;
+  width: 100%;
+  box-shadow: 0 7px 0 #07527c;
+  cursor: pointer;
+}
+
+button:active {
+  transform: translateY(3px);
+  box-shadow: 0 4px 0 #07527c;
+}
+
+.hint {
+  color: #a9c4d4;
+  font-size: 11px;
+  margin-top: 14px;
+  line-height: 1.5;
+}
+
+.finalmsg {
+  font-size: 17px;
+  line-height: 1.5;
+  font-weight: 800;
+  margin: 16px 0 20px;
+}
+
+.hidden {
+  display: none !important;
+}
+
+#toast {
+  position: absolute;
+  left: 50%;
+  top: 22%;
+  transform: translateX(-50%);
+  padding: 8px 13px;
+  border-radius: 20px;
+  color: #fff;
+  background: #06111ddd;
+  border: 1px solid #ffffff44;
+  font-weight: 900;
+  font-size: 13px;
+  opacity: 0;
+  transition: opacity 0.15s;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+button:focus-visible {
+  outline: 3px solid #f3d46b;
+  outline-offset: 4px;
+}
+
+@keyframes car-float {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-2deg);
+  }
+
+  50% {
+    transform: translateY(-7px) rotate(2deg);
+  }
+}
+
+@keyframes panel-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.99);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@media (max-width: 380px) {
+  .hud {
+    padding: 10px 9px 0;
+    gap: 5px;
+  }
+
+  .pill {
+    padding: 7px 8px;
+    font-size: 12px;
+  }
+
+  .pill small {
+    font-size: 8px;
+  }
+
+  #overlay {
+    padding: 16px;
+  }
+
+  .panel {
+    padding: 21px 17px;
+  }
+
+  .sub {
+    font-size: 13px;
+  }
+}
