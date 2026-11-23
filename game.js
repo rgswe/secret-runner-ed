@@ -78,6 +78,27 @@
     { side: 'right', x: 366, y: 264, phase: rand(0, 6), scale: 0.66, driftRate: rand(0.16, 0.25) },
     { side: 'right', x: 414, y: 328, phase: rand(0, 6), scale: 0.48, driftRate: rand(0.16, 0.25) },
   ];
+  const powerRays = Array.from({ length: 130 }, () => ({
+    angle: rand(Math.PI, Math.PI * 2),
+    phase: rand(0, 1),
+    speed: rand(0.45, 0.82),
+    length: rand(48, 120),
+    color: Math.random() < 0.5 ? '#43f5f2' : '#ff4fc8',
+  }));
+  const lowerPowerRays = Array.from({ length: 130 }, () => ({
+    angle: rand(0, Math.PI),
+    phase: rand(0, 1),
+    speed: rand(0.45, 0.82),
+    length: rand(48, 120),
+    color: Math.random() < 0.5 ? '#43f5f2' : '#ff4fc8',
+  }));
+  const horizonPowerRays = Array.from({ length: 32 }, () => ({
+    direction: Math.random() < 0.5 ? -1 : 1,
+    phase: rand(0, 1),
+    speed: rand(0.45, 0.82),
+    length: rand(48, 120),
+    color: Math.random() < 0.5 ? '#43f5f2' : '#ff4fc8',
+  }));
   const roadProjectX = (x, y) => {
     const progress = Math.max(0, (y - ROAD_VANISH_Y) / ROAD_PLAYER_DEPTH);
     const beyondPlayer = Math.max(0, progress - 1);
@@ -87,9 +108,14 @@
     // Keep the selected lane under the car near the bottom, while the distant
     // escape point moves opposite the steering direction.
     const laneShift = lanes[0] + (lanes[1] - lanes[0]) * visualLane - 225;
-    // A linear perspective shift keeps each road line straight at every depth.
+    // Shift the escape point and gently bend the road toward the selected lane.
     const turnSweep = escapeOffset * (1 - progress);
-    return 225 + (x - 225 - laneShift) * perspective + turnSweep;
+    const curveProgress = Math.max(
+      0,
+      Math.min(1, (y - ROAD_VANISH_Y) / (H - ROAD_VANISH_Y)),
+    );
+    const turnCurve = (1 - visualLane) * 10 * 4 * curveProgress * (1 - curveProgress);
+    return 225 + (x - 225 - laneShift) * perspective + turnSweep + turnCurve;
   };
 
   function traceRoadLine(x) {
@@ -405,6 +431,21 @@
     }
     ctx.restore();
 
+    // The sunset fog sits behind the road and softens the distant join.
+    const horizonFog = ctx.createLinearGradient(0, ROAD_VANISH_Y - 20, 0, ROAD_VANISH_Y + 24);
+    horizonFog.addColorStop(0, 'rgba(255, 194, 190, 0)');
+    horizonFog.addColorStop(0.22, 'rgba(255, 194, 190, 0.38)');
+    horizonFog.addColorStop(0.4, 'rgba(255, 194, 190, 0.68)');
+    horizonFog.addColorStop(0.5, 'rgba(255, 210, 205, 0.94)');
+    horizonFog.addColorStop(0.6, 'rgba(222, 174, 202, 0.68)');
+    horizonFog.addColorStop(0.78, 'rgba(222, 174, 202, 0.38)');
+    horizonFog.addColorStop(1, 'rgba(169, 187, 214, 0)');
+    ctx.save();
+    ctx.filter = 'blur(5px)';
+    ctx.fillStyle = horizonFog;
+    ctx.fillRect(0, ROAD_VANISH_Y - 28, W, 60);
+    ctx.restore();
+
     // Road edges and lane dividers end across the same fogged horizon band.
     ctx.fillStyle = '#17152f';
     ctx.beginPath();
@@ -561,30 +602,176 @@
   }
 
   function drawWindEffect() {
-    if (powerTime <= 0 || crashing) return;
-
     ctx.save();
-    ctx.strokeStyle = '#d8f7ff';
-    ctx.lineWidth = 2;
     ctx.lineCap = 'round';
-
+    // Keep the original gentle streaks running all the time.
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, 0, W, H);
+    ctx.moveTo(roadProjectX(505, ROAD_VANISH_Y), ROAD_VANISH_Y);
+    for (let y = ROAD_VANISH_Y + 12; y <= H; y += 12) {
+      ctx.lineTo(roadProjectX(505, y), y);
+    }
+    for (let y = H; y >= ROAD_VANISH_Y; y -= 12) {
+      ctx.lineTo(roadProjectX(-55, y), y);
+    }
+    ctx.closePath();
+    ctx.clip('evenodd');
     for (let i = 0; i < 22; i += 1) {
       const targetX = (i * 97) % W;
       const progress = (i * 0.19 + animTime * 0.7) % 1;
       const endProgress = Math.min(1, progress + 0.025 + progress * 0.055);
-      const startX = 225 + (targetX - 225) * progress;
+      const centerX = 225 + escapeOffset;
+      const startX = centerX + (targetX - centerX) * progress;
       const startY = ROAD_VANISH_Y + (H - ROAD_VANISH_Y) * progress;
-      const endX = 225 + (targetX - 225) * endProgress;
+      const endX = centerX + (targetX - centerX) * endProgress;
       const endY = ROAD_VANISH_Y + (H - ROAD_VANISH_Y) * endProgress;
-      const alpha = 0.2 + (i % 3) * 0.08;
-
-      ctx.globalAlpha = alpha;
+      ctx.globalAlpha = 0.11 + (i % 3) * 0.035;
+      ctx.strokeStyle = i % 2 ? '#43f5f2' : '#d8f7ff';
+      ctx.shadowColor = ctx.strokeStyle;
+      ctx.shadowBlur = 7;
+      ctx.lineWidth = 1.5;
       ctx.beginPath();
       ctx.moveTo(startX, startY);
       ctx.lineTo(endX, endY);
       ctx.stroke();
     }
+    ctx.restore();
 
+    if (powerTime <= 0 || crashing) {
+      ctx.restore();
+      return;
+    }
+
+    const pulse = 0.75 + Math.sin(animTime * 8) * 0.12;
+    const centerX = 225 + escapeOffset * 0.4;
+    const centerY = ROAD_VANISH_Y - 3 + Math.sin(animTime * 1.2) * 4;
+
+    // Blur a band of light around the moving horizon point.
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, 0, W, H);
+    ctx.moveTo(centerX - 78, centerY + 3);
+    ctx.arc(centerX, centerY, 78, Math.PI, 0);
+    ctx.lineTo(centerX + 78, centerY + 3);
+    ctx.closePath();
+    ctx.clip('evenodd');
+    ctx.filter = 'blur(15px)';
+    const horizonGlow = ctx.createRadialGradient(centerX, centerY, 4, centerX, centerY, 230);
+    horizonGlow.addColorStop(0, `rgba(255, 193, 132, ${0.34 * pulse})`);
+    horizonGlow.addColorStop(0.45, `rgba(255, 79, 200, ${0.18 * pulse})`);
+    horizonGlow.addColorStop(1, 'rgba(67, 245, 242, 0)');
+    ctx.fillStyle = horizonGlow;
+    ctx.fillRect(0, centerY - 50, W, 50);
+    ctx.restore();
+
+    // Mask the road so the burst stays on the sky and riverbanks.
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, 0, W, H);
+    ctx.moveTo(roadProjectX(505, ROAD_VANISH_Y), ROAD_VANISH_Y);
+    for (let y = ROAD_VANISH_Y + 12; y <= H; y += 12) {
+      ctx.lineTo(roadProjectX(505, y), y);
+    }
+    for (let y = H; y >= ROAD_VANISH_Y; y -= 12) {
+      ctx.lineTo(roadProjectX(-55, y), y);
+    }
+    ctx.closePath();
+    ctx.clip('evenodd');
+
+    // Exclude the sun disk so the light appears to pass from behind it.
+    ctx.beginPath();
+    ctx.rect(0, 0, W, H);
+    ctx.moveTo(centerX - 78, centerY + 3);
+    ctx.arc(centerX, centerY, 78, Math.PI, 0);
+    ctx.lineTo(centerX + 78, centerY + 3);
+    ctx.closePath();
+    ctx.clip('evenodd');
+
+    // Short, bright ray segments travel outward from the moving escape point.
+    ctx.filter = 'blur(2px)';
+    for (const ray of powerRays) {
+      const dx = Math.cos(ray.angle);
+      const dy = Math.sin(ray.angle);
+      const reach = Math.min(
+        dx > 0 ? (W - centerX) / dx : dx < 0 ? -centerX / dx : Infinity,
+        dy > 0 ? (H - centerY) / dy : dy < 0 ? -centerY / dy : Infinity,
+      );
+      const progress = (animTime * ray.speed + ray.phase) % 1;
+      const start = progress * reach;
+      const end = Math.min(reach, start + ray.length);
+
+      ctx.globalAlpha = (0.72 + ray.phase * 0.26) * pulse;
+      ctx.strokeStyle = ray.color;
+      ctx.shadowColor = ray.color;
+      ctx.shadowBlur = 20;
+      ctx.lineWidth = 1.4 + ray.phase * 1.4;
+      ctx.beginPath();
+      ctx.moveTo(centerX + dx * start, centerY + dy * start);
+      ctx.lineTo(centerX + dx * end, centerY + dy * end);
+      ctx.stroke();
+    }
+
+    // A matching fan travels down from the road's moving vanishing point.
+    for (const ray of lowerPowerRays) {
+      const dx = Math.cos(ray.angle);
+      const dy = Math.sin(ray.angle);
+      const reach = Math.min(
+        dx > 0 ? (W - centerX) / dx : dx < 0 ? -centerX / dx : Infinity,
+        (H - centerY) / dy,
+      );
+      const progress = (animTime * ray.speed + ray.phase) % 1;
+      const start = progress * reach;
+      const end = Math.min(reach, start + ray.length);
+
+      ctx.globalAlpha = (0.72 + ray.phase * 0.26) * pulse;
+      ctx.strokeStyle = ray.color;
+      ctx.shadowColor = ray.color;
+      ctx.shadowBlur = 20;
+      ctx.lineWidth = 1.4 + ray.phase * 1.4;
+      ctx.beginPath();
+      ctx.moveTo(centerX + dx * start, centerY + dy * start);
+      ctx.lineTo(centerX + dx * end, centerY + dy * end);
+      ctx.stroke();
+    }
+
+    // A few rays travel horizontally along the vanishing line itself.
+    for (const ray of horizonPowerRays) {
+      const reach = ray.direction > 0 ? W - centerX : centerX;
+      const progress = (animTime * ray.speed + ray.phase) % 1;
+      const start = progress * reach;
+      const end = Math.min(reach, start + ray.length);
+
+      ctx.globalAlpha = (0.72 + ray.phase * 0.26) * pulse;
+      ctx.strokeStyle = ray.color;
+      ctx.shadowColor = ray.color;
+      ctx.shadowBlur = 20;
+      ctx.lineWidth = 1.4 + ray.phase * 1.4;
+      ctx.beginPath();
+      ctx.moveTo(centerX + ray.direction * start, ROAD_VANISH_Y);
+      ctx.lineTo(centerX + ray.direction * end, ROAD_VANISH_Y);
+      ctx.stroke();
+    }
+
+    // Let the horizon fog sit in front of the rays without washing out the road.
+    ctx.filter = 'blur(5px)';
+    ctx.globalAlpha = 1;
+    ctx.shadowBlur = 0;
+    const rayFog = ctx.createLinearGradient(0, ROAD_VANISH_Y - 20, 0, ROAD_VANISH_Y + 24);
+    rayFog.addColorStop(0, 'rgba(255, 194, 190, 0)');
+    rayFog.addColorStop(0.22, 'rgba(255, 194, 190, 0.38)');
+    rayFog.addColorStop(0.4, 'rgba(255, 194, 190, 0.68)');
+    rayFog.addColorStop(0.5, 'rgba(255, 210, 205, 0.94)');
+    rayFog.addColorStop(0.6, 'rgba(222, 174, 202, 0.68)');
+    rayFog.addColorStop(0.78, 'rgba(222, 174, 202, 0.38)');
+    rayFog.addColorStop(1, 'rgba(169, 187, 214, 0)');
+    ctx.fillStyle = rayFog;
+    ctx.fillRect(0, ROAD_VANISH_Y - 28, W, 60);
+    ctx.filter = 'none';
+    ctx.restore();
+
+    ctx.globalAlpha = 1;
+    ctx.shadowBlur = 0;
     ctx.restore();
   }
 
@@ -707,7 +894,7 @@
   function update(dt) {
     animTime += dt;
     speed = Math.min(400, 235 + score * 0.2);
-    const gameSpeed = speed * (powerTime > 0 ? 1.3 : 1);
+    const gameSpeed = speed * (powerTime > 0 ? 2 : 1);
     score += dt * gameSpeed / 30;
 
     const roadMotion = crashing
