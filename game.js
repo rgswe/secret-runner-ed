@@ -38,7 +38,7 @@
   let particles = [];
   let shockwaves = [];
   let spawn = 0;
-  let speed = 300;
+  let speed = 270;
   let playerY = ROAD_PLAYER_Y;
   let jump = 0;
   let slide = 0;
@@ -107,7 +107,7 @@
     particles = [];
     shockwaves = [];
     spawn = 0.6;
-    speed = 300;
+    speed = 270;
     jump = 0;
     slide = 0;
     power = '';
@@ -245,11 +245,66 @@
 
   function drawBackground() {
     const gradient = ctx.createLinearGradient(0, 0, 0, H);
-    gradient.addColorStop(0, '#153b58');
-    gradient.addColorStop(0.55, '#39718a');
-    gradient.addColorStop(1, '#c2d4c9');
+    gradient.addColorStop(0, '#21164f');
+    gradient.addColorStop(0.32, '#56306f');
+    gradient.addColorStop(0.55, '#f06b83');
+    gradient.addColorStop(1, '#251d43');
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, W, H);
+
+    // Keep the skyline and sunset above the road's horizon and let them follow
+    // the vanishing point as the player steers.
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, 0, W, ROAD_VANISH_Y);
+    ctx.clip();
+    ctx.translate(escapeOffset, 0);
+
+    // Tropical sunset at the road's vanishing point, with the classic striped sun.
+    const sunX = 225;
+    const sunY = ROAD_VANISH_Y;
+    const sunGlow = ctx.createRadialGradient(sunX, sunY, 4, sunX, sunY, 150);
+    sunGlow.addColorStop(0, 'rgba(255, 194, 121, 0.72)');
+    sunGlow.addColorStop(0.42, 'rgba(255, 91, 151, 0.36)');
+    sunGlow.addColorStop(1, 'rgba(255, 91, 151, 0)');
+    ctx.fillStyle = sunGlow;
+    ctx.fillRect(55, 45, 340, 300);
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(sunX, sunY, 78, Math.PI, 0);
+    ctx.lineTo(sunX + 78, sunY + 3);
+    ctx.lineTo(sunX - 78, sunY + 3);
+    ctx.closePath();
+    ctx.clip();
+    const sunFill = ctx.createLinearGradient(0, sunY - 78, 0, sunY + 6);
+    sunFill.addColorStop(0, '#ffe58a');
+    sunFill.addColorStop(0.54, '#ffad70');
+    sunFill.addColorStop(1, '#ff5f9c');
+    ctx.fillStyle = sunFill;
+    ctx.fillRect(sunX - 80, sunY - 80, 160, 88);
+    ctx.fillStyle = '#59255f';
+    for (let i = 0; i < 5; i += 1) {
+      ctx.fillRect(sunX - 82, sunY - 25 + i * 12, 164, 4 + i * 0.7);
+    }
+    ctx.restore();
+
+    // A low neon skyline frames the sunset while leaving the road clear.
+    ctx.fillStyle = '#211b49';
+    const skyline = [
+      [0, 151, 42, 68], [42, 168, 36, 51], [82, 143, 30, 76],
+      [116, 173, 34, 46], [300, 166, 34, 53], [338, 139, 28, 80],
+      [372, 158, 39, 61], [414, 147, 36, 72],
+    ];
+    skyline.forEach(([x, y, width, height]) => {
+      ctx.fillRect(x, y, width, height);
+      ctx.fillStyle = '#ff85bd';
+      for (let wy = y + 10; wy < y + height - 4; wy += 13) {
+        ctx.fillRect(x + 7, wy, 3, 5);
+        if (width > 32) ctx.fillRect(x + width - 10, wy, 3, 5);
+      }
+      ctx.fillStyle = '#211b49';
+    });
+    ctx.restore();
 
     // Distant scenery follows the camera more slowly than the road.
     ctx.save();
@@ -271,14 +326,14 @@
 
     // Keep the distant winter haze behind the road surface.
     const horizonHaze = ctx.createLinearGradient(0, ROAD_VANISH_Y, 0, 390);
-    horizonHaze.addColorStop(0, 'rgba(198, 220, 215, 0.72)');
-    horizonHaze.addColorStop(0.42, 'rgba(198, 220, 215, 0.35)');
-    horizonHaze.addColorStop(1, 'rgba(198, 220, 215, 0)');
+    horizonHaze.addColorStop(0, 'rgba(255, 127, 176, 0.34)');
+    horizonHaze.addColorStop(0.42, 'rgba(105, 74, 151, 0.25)');
+    horizonHaze.addColorStop(1, 'rgba(105, 74, 151, 0)');
     ctx.fillStyle = horizonHaze;
     ctx.fillRect(0, ROAD_VANISH_Y, W, 260);
 
     // Road edges and lane dividers end across the same fogged horizon band.
-    ctx.fillStyle = '#28343e';
+    ctx.fillStyle = '#17152f';
     ctx.beginPath();
     ctx.moveTo(roadProjectX(505, ROAD_VANISH_Y), ROAD_VANISH_Y);
     traceRoadLine(505);
@@ -290,7 +345,7 @@
     ctx.closePath();
     ctx.fill();
 
-    ctx.fillStyle = '#35444e';
+    ctx.fillStyle = '#292043';
     ctx.beginPath();
     ctx.moveTo(roadProjectX(-55, ROAD_VANISH_Y), ROAD_VANISH_Y);
     traceRoadLine(-20);
@@ -313,17 +368,27 @@
     ctx.fill();
 
     // Lane dividers scroll down the screen as the car advances.
-    ctx.strokeStyle = '#e9e8d7';
-    ctx.lineWidth = 3;
-    ctx.setLineDash([24, 32]);
-    ctx.lineDashOffset = -roadOffset % 56;
-
-    for (const x of [140, 310]) {
+    // Neon road edges and lane dividers, with a soft bloom under crisp cores.
+    ctx.save();
+    ctx.lineCap = 'round';
+    for (const x of [-20, 140, 310, 470]) {
       ctx.beginPath();
       ctx.moveTo(roadProjectX(x, ROAD_VANISH_Y), ROAD_VANISH_Y);
       traceRoadLine(x);
+      const roadEdge = x === -20 || x === 470;
+      ctx.setLineDash(roadEdge ? [] : [24, 32]);
+      ctx.lineDashOffset = roadEdge ? 0 : -roadOffset % 56;
+      ctx.strokeStyle = roadEdge ? '#ff4fc8' : '#43f5f2';
+      ctx.lineWidth = roadEdge ? 5 : 4;
+      ctx.shadowColor = ctx.strokeStyle;
+      ctx.shadowBlur = 16;
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = '#ffe2fa';
+      ctx.lineWidth = 1.2;
       ctx.stroke();
     }
+    ctx.restore();
     ctx.setLineDash([]);
     ctx.shadowBlur = 0;
 
@@ -515,7 +580,7 @@
 
   function update(dt) {
     animTime += dt;
-    speed = Math.min(500, 300 + score * 0.28);
+    speed = Math.min(460, 270 + score * 0.25);
     const gameSpeed = speed * (powerTime > 0 ? 1.3 : 1);
     score += dt * gameSpeed / 30;
 
