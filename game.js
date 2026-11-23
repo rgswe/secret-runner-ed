@@ -39,7 +39,7 @@
   let particles = [];
   let shockwaves = [];
   let spawn = 0;
-  let speed = 270;
+  let speed = 235;
   let playerY = ROAD_PLAYER_Y;
   let jump = 0;
   let slide = 0;
@@ -72,6 +72,12 @@
   // Small utilities and game lifecycle
   // ---------------------------------------------------------------------------
   const rand = (min, max) => Math.random() * (max - min) + min;
+  const horizonBoats = [
+    { side: 'left', x: 82, y: 242, phase: rand(0, 6), scale: 0.72, driftRate: rand(0.16, 0.25) },
+    { side: 'left', x: 132, y: 310, phase: rand(0, 6), scale: 0.52, driftRate: rand(0.16, 0.25) },
+    { side: 'right', x: 366, y: 264, phase: rand(0, 6), scale: 0.66, driftRate: rand(0.16, 0.25) },
+    { side: 'right', x: 414, y: 328, phase: rand(0, 6), scale: 0.48, driftRate: rand(0.16, 0.25) },
+  ];
   const roadProjectX = (x, y) => {
     const progress = Math.max(0, (y - ROAD_VANISH_Y) / ROAD_PLAYER_DEPTH);
     const beyondPlayer = Math.max(0, progress - 1);
@@ -108,7 +114,7 @@
     particles = [];
     shockwaves = [];
     spawn = 0.6;
-    speed = 270;
+    speed = 235;
     jump = 0;
     slide = 0;
     power = '';
@@ -370,6 +376,35 @@
     ctx.fillStyle = horizonHaze;
     ctx.fillRect(0, ROAD_VANISH_Y, W, 260);
 
+    // A quiet river runs beside the road below its vanishing point.
+    const water = ctx.createLinearGradient(0, ROAD_VANISH_Y, 0, H);
+    water.addColorStop(0, 'rgba(255, 137, 145, 0.72)');
+    water.addColorStop(0.24, 'rgba(230, 112, 151, 0.62)');
+    water.addColorStop(0.62, 'rgba(77, 119, 153, 0.68)');
+    water.addColorStop(1, 'rgba(16, 49, 91, 0.94)');
+    ctx.fillStyle = water;
+    ctx.fillRect(0, ROAD_VANISH_Y, W, H - ROAD_VANISH_Y);
+    const reflection = ctx.createLinearGradient(150, 0, 300, 0);
+    reflection.addColorStop(0, 'rgba(255, 168, 121, 0)');
+    reflection.addColorStop(0.5, 'rgba(255, 168, 121, 0.28)');
+    reflection.addColorStop(1, 'rgba(255, 168, 121, 0)');
+    ctx.fillStyle = reflection;
+    ctx.fillRect(0, ROAD_VANISH_Y, W, H - ROAD_VANISH_Y);
+    ctx.save();
+    ctx.lineWidth = 1;
+    for (let i = 0; i < 18; i += 1) {
+      const y = ROAD_VANISH_Y + 12 + i * 12;
+      const drift = (animTime * (5 + i % 3) + i * 37) % 450;
+      const x = (drift + (i % 2 ? 0 : 225)) % 450;
+      ctx.globalAlpha = i % 3 === 0 ? 0.4 : 0.25;
+      ctx.strokeStyle = i % 3 === 0 ? '#ffd18c' : '#b9f1e9';
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.lineTo(x + 12 + (i % 4) * 3, y);
+      ctx.stroke();
+    }
+    ctx.restore();
+
     // Road edges and lane dividers end across the same fogged horizon band.
     ctx.fillStyle = '#17152f';
     ctx.beginPath();
@@ -404,6 +439,59 @@
     ctx.lineTo(roadProjectX(505, ROAD_VANISH_Y), ROAD_VANISH_Y);
     ctx.closePath();
     ctx.fill();
+
+    // Boats drift gently and independently along the riverbanks. Their paths
+    // stay outside the road even as the player steers.
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(0, ROAD_VANISH_Y);
+    for (let y = ROAD_VANISH_Y; y <= 430; y += 10) {
+      ctx.lineTo(roadProjectX(-55, y), y);
+    }
+    ctx.lineTo(0, 430);
+    ctx.closePath();
+    ctx.moveTo(W, ROAD_VANISH_Y);
+    for (let y = ROAD_VANISH_Y; y <= 430; y += 10) {
+      ctx.lineTo(roadProjectX(505, y), y);
+    }
+    ctx.lineTo(W, 430);
+    ctx.closePath();
+    ctx.clip();
+    for (const boat of horizonBoats) {
+      const drift = Math.sin(animTime * boat.driftRate + boat.phase);
+      const bob = Math.sin(animTime * 0.7 + boat.phase) * 1.5;
+      const x = boat.x + drift * (boat.side === 'left' ? 5 : -5);
+      const y = boat.y + bob;
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.scale(boat.scale, boat.scale);
+      ctx.fillStyle = '#30204f';
+      ctx.beginPath();
+      ctx.moveTo(-15, 8);
+      ctx.lineTo(15, 8);
+      ctx.lineTo(10, 13);
+      ctx.lineTo(-10, 13);
+      ctx.closePath();
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(-2, 6);
+      ctx.lineTo(-2, -12);
+      ctx.lineTo(-12, 5);
+      ctx.closePath();
+      ctx.moveTo(1, 4);
+      ctx.lineTo(1, -9);
+      ctx.lineTo(10, 4);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = '#ffd78a';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(-17, 16);
+      ctx.quadraticCurveTo(0, 13, 17, 16);
+      ctx.stroke();
+      ctx.restore();
+    }
+    ctx.restore();
 
     // Lane dividers scroll down the screen as the car advances.
     // Neon road edges and lane dividers, with a soft bloom under crisp cores.
@@ -609,8 +697,8 @@
     let type;
 
     if (roll < 0.4) type = 'porto';
-    else if (roll < 0.6) type = 'benfica';
-    else if (roll < 0.8) type = 'sporting';
+    else if (roll < 0.64) type = 'benfica';
+    else if (roll < 0.88) type = 'sporting';
     else type = 'halter';
 
     items.push({ lane: itemLane, y: ROAD_SPAWN_Y, type, passed: false });
@@ -618,7 +706,7 @@
 
   function update(dt) {
     animTime += dt;
-    speed = Math.min(460, 270 + score * 0.25);
+    speed = Math.min(400, 235 + score * 0.2);
     const gameSpeed = speed * (powerTime > 0 ? 1.3 : 1);
     score += dt * gameSpeed / 30;
 
