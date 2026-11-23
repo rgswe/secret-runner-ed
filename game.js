@@ -7,14 +7,14 @@
 
   const W = 450;
   const H = 800;
-  const lanes = [75, 225, 375];
+  const lanes = [55, 225, 395];
 
   // Let the road fade into a broad, distant horizon just above the skyline.
-  const ROAD_VANISH_Y = 250;
-  const ROAD_SPAWN_Y = 300;
-  const ROAD_PLAYER_Y = 550;
+  const ROAD_VANISH_Y = 220;
+  const ROAD_SPAWN_Y = 220;
+  const ROAD_PLAYER_Y =530;
   const ROAD_PLAYER_DEPTH = ROAD_PLAYER_Y - ROAD_VANISH_Y;
-  const ROAD_HORIZON_SCALE = 0.1;
+  const ROAD_HORIZON_SCALE = 0.05;
   const ROAD_BOTTOM_STRETCH = 0;
 
   const scoreEl = document.getElementById('score');
@@ -33,6 +33,7 @@
   let score = 0;
   let coins = 0;
   let lane = 1;
+  let visualLane = 1;
   let items = [];
   let particles = [];
   let shockwaves = [];
@@ -78,7 +79,7 @@
       + ROAD_BOTTOM_STRETCH * beyondPlayer;
     // Keep the selected lane under the car near the bottom, while the distant
     // escape point moves opposite the steering direction.
-    const laneShift = lanes[lane] - 225;
+    const laneShift = lanes[0] + (lanes[1] - lanes[0]) * visualLane - 225;
     // A linear perspective shift keeps each road line straight at every depth.
     const turnSweep = escapeOffset * (1 - progress);
     return 225 + (x - 225 - laneShift) * perspective + turnSweep;
@@ -101,6 +102,7 @@
     score = 0;
     coins = 0;
     lane = 1;
+    visualLane = 1;
     items = [];
     particles = [];
     shockwaves = [];
@@ -286,33 +288,33 @@
     // Road edges and lane dividers end across the same fogged horizon band.
     ctx.fillStyle = '#28343e';
     ctx.beginPath();
-    ctx.moveTo(roadProjectX(450, ROAD_VANISH_Y), ROAD_VANISH_Y);
-    traceRoadLine(450);
+    ctx.moveTo(roadProjectX(480, ROAD_VANISH_Y), ROAD_VANISH_Y);
+    traceRoadLine(480);
     for (let y = H; y >= ROAD_VANISH_Y; y -= 16) {
-      ctx.lineTo(roadProjectX(0, y), y);
+      ctx.lineTo(roadProjectX(-30, y), y);
     }
-    ctx.lineTo(roadProjectX(450, ROAD_VANISH_Y), ROAD_VANISH_Y);
+    ctx.lineTo(roadProjectX(480, ROAD_VANISH_Y), ROAD_VANISH_Y);
     ctx.closePath();
     ctx.fill();
 
     ctx.fillStyle = '#35444e';
     ctx.beginPath();
-    ctx.moveTo(roadProjectX(0, ROAD_VANISH_Y), ROAD_VANISH_Y);
-    traceRoadLine(35);
+    ctx.moveTo(roadProjectX(-30, ROAD_VANISH_Y), ROAD_VANISH_Y);
+    traceRoadLine(5);
     for (let y = H; y >= ROAD_VANISH_Y; y -= 16) {
-      ctx.lineTo(roadProjectX(0, y), y);
+      ctx.lineTo(roadProjectX(-30, y), y);
     }
-    ctx.lineTo(roadProjectX(0, ROAD_VANISH_Y), ROAD_VANISH_Y);
+    ctx.lineTo(roadProjectX(-30, ROAD_VANISH_Y), ROAD_VANISH_Y);
     ctx.closePath();
     ctx.fill();
 
     ctx.beginPath();
-    ctx.moveTo(roadProjectX(450, ROAD_VANISH_Y), ROAD_VANISH_Y);
-    traceRoadLine(450);
+    ctx.moveTo(roadProjectX(480, ROAD_VANISH_Y), ROAD_VANISH_Y);
+    traceRoadLine(480);
     for (let y = H; y >= ROAD_VANISH_Y; y -= 16) {
-      ctx.lineTo(roadProjectX(415, y), y);
+      ctx.lineTo(roadProjectX(445, y), y);
     }
-    ctx.lineTo(roadProjectX(450, ROAD_VANISH_Y), ROAD_VANISH_Y);
+    ctx.lineTo(roadProjectX(480, ROAD_VANISH_Y), ROAD_VANISH_Y);
     ctx.closePath();
     ctx.fill();
 
@@ -322,7 +324,7 @@
     ctx.setLineDash([24, 32]);
     ctx.lineDashOffset = -roadOffset % 56;
 
-    for (const x of [150, 300]) {
+    for (const x of [140, 310]) {
       ctx.beginPath();
       ctx.moveTo(roadProjectX(x, ROAD_VANISH_Y), ROAD_VANISH_Y);
       traceRoadLine(x);
@@ -511,6 +513,10 @@
       ? Math.max(0, Math.min(1, (crashTimer - 0.4) / 0.22))
       : 1;
     roadOffset += gameSpeed * dt * roadMotion;
+
+    // Ease the road beneath the car toward the selected lane. A damped,
+    // frame-rate independent response removes the abrupt snap on steering.
+    visualLane += (lane - visualLane) * (1 - Math.exp(-dt * 8));
 
     const escapeTarget = (1 - lane) * 1;
     escapeOffset += (escapeTarget - escapeOffset) * (1 - Math.exp(-dt * 3.5));
