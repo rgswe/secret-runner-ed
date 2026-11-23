@@ -10,11 +10,11 @@
   const lanes = [55, 225, 395];
 
   // Let the road fade into a broad, distant horizon just above the skyline.
-  const ROAD_VANISH_Y = 220;
-  const ROAD_SPAWN_Y = 220;
-  const ROAD_PLAYER_Y =530;
+  const ROAD_VANISH_Y = 200;
+  const ROAD_SPAWN_Y = ROAD_VANISH_Y;
+  const ROAD_PLAYER_Y = 570;
   const ROAD_PLAYER_DEPTH = ROAD_PLAYER_Y - ROAD_VANISH_Y;
-  const ROAD_HORIZON_SCALE = 0.05;
+  const ROAD_HORIZON_SCALE = 0.14;
   const ROAD_BOTTOM_STRETCH = 0;
 
   const scoreEl = document.getElementById('score');
@@ -255,28 +255,12 @@
     ctx.save();
     ctx.translate(escapeOffset * 0.2, 0);
 
-    // Winter skyline and lit windows.
-    for (let i = 0; i < 9; i += 1) {
-      const x = i * 58 - 8;
-      const buildingHeight = 100 + (i * 37 % 95);
-      ctx.fillStyle = i % 2 ? '#1c3d52' : '#244b5c';
-      ctx.fillRect(x, 250 - buildingHeight * 0.35, 48, buildingHeight);
-
-      for (let windowY = 0; windowY < 4; windowY += 1) {
-        for (let windowX = 0; windowX < 2; windowX += 1) {
-          ctx.fillStyle = '#f7d98b';
-          ctx.globalAlpha = 0.6;
-          ctx.fillRect(x + 9 + windowX * 18, 260 - buildingHeight * 0.35 + windowY * 19, 7, 9);
-          ctx.globalAlpha = 1;
-        }
-      }
-    }
-
     // Snow moves with the road offset to make the scene feel animated.
     ctx.fillStyle = '#eaf5f2';
     for (let i = 0; i < 45; i += 1) {
       const x = (i * 83 + roadOffset * 0.11) % W;
       const y = (i * 137 + roadOffset * 0.35) % H;
+      if (y >= ROAD_VANISH_Y) continue;
       ctx.globalAlpha = 0.45;
       ctx.beginPath();
       ctx.arc(x, y, 1.5 + (i % 3), 0, Math.PI * 2);
@@ -285,36 +269,46 @@
     ctx.globalAlpha = 1;
     ctx.restore();
 
+    // Keep the distant winter haze behind the road surface.
+    const horizonHaze = ctx.createLinearGradient(0, ROAD_VANISH_Y, 0, 390);
+    horizonHaze.addColorStop(0, 'rgba(198, 220, 215, 0.72)');
+    horizonHaze.addColorStop(0.42, 'rgba(198, 220, 215, 0.35)');
+    horizonHaze.addColorStop(1, 'rgba(198, 220, 215, 0)');
+    ctx.fillStyle = horizonHaze;
+    ctx.fillRect(0, ROAD_VANISH_Y, W, 260);
+
     // Road edges and lane dividers end across the same fogged horizon band.
     ctx.fillStyle = '#28343e';
     ctx.beginPath();
-    ctx.moveTo(roadProjectX(480, ROAD_VANISH_Y), ROAD_VANISH_Y);
-    traceRoadLine(480);
-    for (let y = H; y >= ROAD_VANISH_Y; y -= 16) {
-      ctx.lineTo(roadProjectX(-30, y), y);
+    ctx.moveTo(roadProjectX(505, ROAD_VANISH_Y), ROAD_VANISH_Y);
+    traceRoadLine(505);
+    for (let y = H; y > ROAD_VANISH_Y; y -= 16) {
+      ctx.lineTo(roadProjectX(-55, y), y);
     }
-    ctx.lineTo(roadProjectX(480, ROAD_VANISH_Y), ROAD_VANISH_Y);
+    ctx.lineTo(roadProjectX(-55, ROAD_VANISH_Y), ROAD_VANISH_Y);
+    ctx.lineTo(roadProjectX(505, ROAD_VANISH_Y), ROAD_VANISH_Y);
     ctx.closePath();
     ctx.fill();
 
     ctx.fillStyle = '#35444e';
     ctx.beginPath();
-    ctx.moveTo(roadProjectX(-30, ROAD_VANISH_Y), ROAD_VANISH_Y);
-    traceRoadLine(5);
-    for (let y = H; y >= ROAD_VANISH_Y; y -= 16) {
-      ctx.lineTo(roadProjectX(-30, y), y);
+    ctx.moveTo(roadProjectX(-55, ROAD_VANISH_Y), ROAD_VANISH_Y);
+    traceRoadLine(-20);
+    for (let y = H; y > ROAD_VANISH_Y; y -= 16) {
+      ctx.lineTo(roadProjectX(-55, y), y);
     }
-    ctx.lineTo(roadProjectX(-30, ROAD_VANISH_Y), ROAD_VANISH_Y);
+    ctx.lineTo(roadProjectX(-55, ROAD_VANISH_Y), ROAD_VANISH_Y);
     ctx.closePath();
     ctx.fill();
 
     ctx.beginPath();
-    ctx.moveTo(roadProjectX(480, ROAD_VANISH_Y), ROAD_VANISH_Y);
-    traceRoadLine(480);
-    for (let y = H; y >= ROAD_VANISH_Y; y -= 16) {
-      ctx.lineTo(roadProjectX(445, y), y);
+    ctx.moveTo(roadProjectX(505, ROAD_VANISH_Y), ROAD_VANISH_Y);
+    traceRoadLine(505);
+    for (let y = H; y > ROAD_VANISH_Y; y -= 16) {
+      ctx.lineTo(roadProjectX(470, y), y);
     }
-    ctx.lineTo(roadProjectX(480, ROAD_VANISH_Y), ROAD_VANISH_Y);
+    ctx.lineTo(roadProjectX(470, ROAD_VANISH_Y), ROAD_VANISH_Y);
+    ctx.lineTo(roadProjectX(505, ROAD_VANISH_Y), ROAD_VANISH_Y);
     ctx.closePath();
     ctx.fill();
 
@@ -333,29 +327,45 @@
     ctx.setLineDash([]);
     ctx.shadowBlur = 0;
 
-    // A soft winter haze blurs the distant end of the road into the skyline.
-    const horizonHaze = ctx.createLinearGradient(0, ROAD_VANISH_Y, 0, 390);
-    horizonHaze.addColorStop(0, 'rgba(198, 220, 215, 0.72)');
-    horizonHaze.addColorStop(0.42, 'rgba(198, 220, 215, 0.35)');
-    horizonHaze.addColorStop(1, 'rgba(198, 220, 215, 0)');
-    ctx.fillStyle = horizonHaze;
-    ctx.fillRect(0, ROAD_VANISH_Y, W, 260);
-
     // Christmas garland above the road.
     ctx.strokeStyle = '#d9b75d';
     ctx.lineWidth = 3;
+    const garlandBob = Math.sin(animTime * 1.25) * 10;
     ctx.beginPath();
-    ctx.moveTo(0, 245);
-    ctx.quadraticCurveTo(225, 295, 450, 245);
+    ctx.moveTo(0, 225 + garlandBob * 0.35);
+    ctx.quadraticCurveTo(225, 275 + garlandBob, 450, 225 + garlandBob * 0.35);
     ctx.stroke();
 
     for (let i = 0; i < 11; i += 1) {
       const x = i * 45;
-      const y = 245 + Math.sin(i / 10 * Math.PI) * 24;
-      ctx.fillStyle = ['#d94e4e', '#f3d46b', '#4ba879'][i % 3];
+      const sway = Math.sin(animTime * 1.8 + i * 0.65) * 3;
+      const y = 225 + Math.sin(i / 10 * Math.PI) * 24
+        + garlandBob * Math.sin(i / 10 * Math.PI) + sway;
+      const lights = [
+        { color: '#d94e4e', rgb: '217, 78, 78' },
+        { color: '#f3d46b', rgb: '243, 212, 107' },
+        { color: '#4ba879', rgb: '75, 168, 121' },
+      ];
+      const light = lights[i % lights.length];
+      const pulse = (Math.sin(animTime * 3.2 + i * 2.17) + 1) / 2;
+      const glow = ctx.createRadialGradient(x, y, 1, x, y, 27);
+      glow.addColorStop(0, `rgba(${light.rgb}, ${0.35 + pulse * 0.4})`);
+      glow.addColorStop(0.24, `rgba(${light.rgb}, ${0.16 + pulse * 0.24})`);
+      glow.addColorStop(1, `rgba(${light.rgb}, 0)`);
+      ctx.fillStyle = glow;
       ctx.beginPath();
-      ctx.arc(x, y, 4, 0, Math.PI * 2);
+      ctx.arc(x, y, 27, 0, Math.PI * 2);
       ctx.fill();
+
+      // A bright, steady-sized core makes the colored bloom read as light.
+      ctx.save();
+      ctx.shadowColor = light.color;
+      ctx.shadowBlur = 8 + pulse * 14;
+      ctx.fillStyle = light.color;
+      ctx.beginPath();
+      ctx.arc(x, y, 4.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
     }
   }
 
@@ -404,9 +414,9 @@
   }
 
   function drawCar(x, y) {
-    const width = 130;
+    const width = 142;
     // Correct most of the import stretch while keeping the car's road presence.
-    const height = 132;
+    const height = 130;
     const carY = y - 8
       + (jump ? -Math.sin(jump * Math.PI) * 95 : 0)
       + Math.sin(animTime * 4) * 0.8;
