@@ -16,6 +16,7 @@
   const ROAD_PLAYER_DEPTH = ROAD_PLAYER_Y - ROAD_VANISH_Y;
   const ROAD_HORIZON_SCALE = 0.14;
   const ROAD_BOTTOM_STRETCH = 0;
+  const TURN_SWEEP_DISTANCE = 48;
 
   const scoreEl = document.getElementById('score');
   const coinsEl = document.getElementById('coins');
@@ -258,11 +259,10 @@
     ctx.beginPath();
     ctx.rect(0, 0, W, ROAD_VANISH_Y);
     ctx.clip();
-    ctx.translate(escapeOffset, 0);
 
     // Tropical sunset at the road's vanishing point, with the classic striped sun.
-    const sunX = 225;
-    const sunY = ROAD_VANISH_Y;
+    const sunX = 225 + escapeOffset * 0.4;
+    const sunY = ROAD_VANISH_Y - 3 + Math.sin(animTime * 1.2) * 4;
     const sunGlow = ctx.createRadialGradient(sunX, sunY, 4, sunX, sunY, 150);
     sunGlow.addColorStop(0, 'rgba(255, 194, 121, 0.72)');
     sunGlow.addColorStop(0.42, 'rgba(255, 91, 151, 0.36)');
@@ -289,12 +289,49 @@
     ctx.restore();
 
     // A low neon skyline frames the sunset while leaving the road clear.
+    ctx.save();
+    ctx.translate(escapeOffset * 1.1, 0);
     ctx.fillStyle = '#211b49';
     const skyline = [
+      [-102, 159, 38, 60], [-62, 137, 31, 82], [-29, 166, 27, 53],
       [0, 151, 42, 68], [42, 168, 36, 51], [82, 143, 30, 76],
       [116, 173, 34, 46], [300, 166, 34, 53], [338, 139, 28, 80],
-      [372, 158, 39, 61], [414, 147, 36, 72],
+      [372, 158, 39, 61], [414, 147, 36, 72], [452, 166, 31, 53],
+      [485, 142, 37, 77], [524, 157, 34, 62], [560, 134, 42, 85],
     ];
+    // Draw the bridge first so the buildings overlap it in the skyline.
+    ctx.save();
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.shadowColor = '#ff4fc8';
+    ctx.shadowBlur = 10;
+    ctx.strokeStyle = '#ff68c9';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(94, 190);
+    ctx.lineTo(356, 190);
+    ctx.moveTo(137, 190);
+    ctx.lineTo(137, 157);
+    ctx.moveTo(313, 190);
+    ctx.lineTo(313, 157);
+    ctx.moveTo(137, 158);
+    ctx.quadraticCurveTo(225, 211, 313, 158);
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = '#54f7f0';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(94, 194);
+    ctx.lineTo(356, 194);
+    for (let x = 153; x <= 297; x += 12) {
+      const t = (x - 137) / (313 - 137);
+      const cableY = 158 + 106 * t * (1 - t);
+      ctx.moveTo(x, cableY);
+      ctx.lineTo(x, 190);
+    }
+    ctx.stroke();
+    ctx.restore();
+
     skyline.forEach(([x, y, width, height]) => {
       ctx.fillRect(x, y, width, height);
       ctx.fillStyle = '#ff85bd';
@@ -304,6 +341,7 @@
       }
       ctx.fillStyle = '#211b49';
     });
+    ctx.restore();
     ctx.restore();
 
     // Distant scenery follows the camera more slowly than the road.
@@ -593,7 +631,7 @@
     // frame-rate independent response removes the abrupt snap on steering.
     visualLane += (lane - visualLane) * (1 - Math.exp(-dt * 8));
 
-    const escapeTarget = (1 - lane) * 1;
+    const escapeTarget = (1 - lane) * TURN_SWEEP_DISTANCE;
     escapeOffset += (escapeTarget - escapeOffset) * (1 - Math.exp(-dt * 3.5));
     updateParticles(dt);
 
