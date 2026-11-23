@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 480" role="img" aria-labelledby="title desc">
+  <title id="title">Rear view of an Audi A3 turning right</title>
+  <desc id="desc">A silver grey Audi A3 8V viewed from behind, with wind streaks suggesting a right turn.</desc>
+  <defs>
+    <linearGradient id="paint" x2="0" y2="1">
+      <stop stop-color="#d1d4d5"/><stop offset=".22" stop-color="#aeb3b5"/><stop offset=".5" stop-color="#858b8e"/><stop offset=".76" stop-color="#a3a8aa"/><stop offset="1" stop-color="#656b6e"/>
+    </linearGradient>
+    <linearGradient id="window" x2="0" y2="1">
+      <stop stop-color="#30373b"/><stop offset=".2" stop-color="#20272b"/><stop offset="1" stop-color="#111619"/>
+    </linearGradient>
+    <linearGradient id="bumper" x2="0" y2="1"><stop stop-color="#8e9496"/><stop offset=".45" stop-color="#777d80"/><stop offset="1" stop-color="#53595c"/></linearGradient>
+    <linearGradient id="lamp" x2="0" y2="1"><stop stop-color="#ff5650"/><stop offset=".5" stop-color="#d5292c"/><stop offset="1" stop-color="#8d171e"/></linearGradient>
+  </defs>
+  <!-- Soft trailing wind ribbons suggest a right turn while keeping the familiar rear view. -->
+  <g fill="none" stroke-linecap="round" opacity=".78">
+    <path d="M134 245 C90 218 57 219 19 229" stroke="#42e7ff" stroke-width="8"/>
+    <path d="M126 274 C85 257 54 260 10 270" stroke="#ff58b5" stroke-width="5"/>
+    <path d="M138 305 C97 300 72 310 30 326" stroke="#a9f7ff" stroke-width="4"/>
+    <path d="M125 356 C89 356 62 372 34 392" stroke="#42e7ff" stroke-width="6"/>
+  </g>
+  <!-- grounded shadow -->
+  <ellipse cx="350" cy="442" rx="255" ry="15" fill="#202426" opacity=".22"/>
+  <!-- tires tucked under the arches -->
+  <path d="M132 331h69v93h-69zM499 331h69v93h-69z" fill="#202326"/>
+  <path d="M147 367a20 29 0 1 0 40 0v48h-40zM513 367a20 29 0 1 0 40 0v48h-40z" fill="#111416"/>
+  <!-- roof spoiler, body silhouette and hatch -->
+  <path d="M190 126Q210 105 260 105H440Q490 105 510 126L548 235L562 250Q576 255 576 273L560 365Q558 389 540 401Q510 420 490 422H210Q190 420 160 401Q142 389 140 365L124 273Q124 255 138 250L152 235Z" fill="url(#paint)" stroke="#596064" stroke-width="2"/>
+  <path d="M190 126Q270 107 350 107Q430 107 510 126L522 142Q430 127 350 127Q270 127 178 142Z" fill="#252b2e"/>
+  <path d="M193 140q73-16 157-16t157 16l39 104H154z" fill="url(#window)" stroke="#747b7e" stroke-width="3"/>
+  <!-- subtle window reflections and interior silhouettes -->
+  <path d="M213 148l-36 84M487 147l34 84" stroke="#788287" stroke-width="4" opacity=".16"/>
+  <path d="M238 164q10-12 29-12h24v64h-64zM411 152h26q20 0 31 15l11 47h-67z" fill="#090d0f" opacity=".62"/>
+  <path d="M245 155v48M431 154v49" stroke="#626a6e" stroke-width="3" opacity=".42"/>
+  <path d="M328 231q22-8 52 0l31 5" fill="none" stroke="#080c0e" stroke-width="6" stroke-linecap="round"/>
+  <!-- third brake lamp and roof antenna -->
+  <path d="M293 137q57-4 114 0" stroke="#c33135" stroke-width="3"/>
+  <path d="M348 105l5-10 5 10" fill="#22282b"/>
+  <!-- hatch skin: broad, mostly flat panel with restrained creases -->
+  <path d="M150 247q90 13 200 13t200-13l18 112q-86 19-218 19t-218-19z" fill="url(#paint)" stroke="#777e81" stroke-width="1.5"/>
+  <path d="M153 248q89 11 197 11t197-11" fill="none" stroke="#e0e2e3" stroke-width="2" opacity=".62"/>
+  <!-- angular wraparound 8V tail lamps -->
+  <g transform="translate(12 0)">
+    <path d="M128 253l66-10 17 13v11l-68 1z" fill="url(#lamp)" stroke="#5b171a" stroke-width="2"/>
+    <path d="M140 272l72-1 2 13-19 15-56-6-9-10z" fill="#cf3435" stroke="#5b171a" stroke-width="2"/>
+  </g>
+  <g transform="translate(688 0) scale(-1 1)">
+    <path d="M128 253l66-10 17 13v11l-68 1z" fill="url(#lamp)" stroke="#5b171a" stroke-width="2"/>
+    <path d="M140 272l72-1 2 13-19 15-56-6-9-10z" fill="#cf3435" stroke="#5b171a" stroke-width="2"/>
+  </g>
+  <!-- Audi rings and model lettering -->
+  <g fill="none" stroke="#e4e7e8" stroke-width="3.4" opacity=".95">
+    <circle cx="322" cy="280" r="12"/><circle cx="341" cy="280" r="12"/><circle cx="360" cy="280" r="12"/><circle cx="379" cy="280" r="12"/>
+  </g>
+  <text x="187" y="319" fill="#e8eaeb" font-family="Arial,sans-serif" font-size="12" font-weight="600" letter-spacing="1.2">A3</text>
+  <text x="467" y="319" fill="#e8eaeb" font-family="Arial,sans-serif" font-size="10" font-weight="600" letter-spacing=".8">TDI</text>
+  <!-- plate recess -->
+  <path d="M275 300h150v42H275z" rx="3" fill="#555c5f" stroke="#747a7d" stroke-width="2"/>
+  <rect x="283" y="306" width="134" height="30" rx="2" fill="#e6e8e8"/>
+  <rect x="289" y="311" width="122" height="20" fill="#fafafa"/>
+  <!-- bumper, lower valance and silver trim -->
+  <path d="M126 337q93 19 224 19t224-19l6 32q2 15-12 23-29 16-74 19-55 5-144 5t-144-5q-45-3-74-19-14-8-12-23z" fill="url(#bumper)" stroke="#5d6467" stroke-width="2"/>
+  <path d="M131 379q85 19 219 19t219-19l-10 22q-74 21-209 21t-209-21z" fill="#262c2f"/>
+  <path d="M152 387q80 15 198 15t198-15" fill="none" stroke="#c3c7c8" stroke-width="3"/>
+  <!-- corner reflectors, sensors, twin left exhausts -->
+  <path d="M120 350l28 5-2 11-28-5zM580 350l-28 5 2 11 28-5z" fill="#a9232a"/>
+  <g fill="#686f72" stroke="#aeb3b5" stroke-width="1"><circle cx="224" cy="371" r="4"/><circle cx="278" cy="376" r="4"/><circle cx="422" cy="376" r="4"/><circle cx="476" cy="371" r="4"/></g>
+  <g fill="#171b1d" stroke="#b8bdbe" stroke-width="3"><ellipse cx="164" cy="412" rx="14" ry="8"/><ellipse cx="195" cy="412" rx="14" ry="8"/></g>
+  <g fill="#687074"><ellipse cx="164" cy="412" rx="8" ry="4"/><ellipse cx="195" cy="412" rx="8" ry="4"/></g>
+</svg>

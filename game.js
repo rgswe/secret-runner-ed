@@ -9,11 +9,13 @@
   const H = 800;
   const lanes = [75, 225, 375];
 
-  const ROAD_VANISH_Y = 170;
+  // Let the road fade into a broad, distant horizon just above the skyline.
+  const ROAD_VANISH_Y = 250;
   const ROAD_SPAWN_Y = 300;
-  const ROAD_PLAYER_Y = 650;
+  const ROAD_PLAYER_Y = 550;
   const ROAD_PLAYER_DEPTH = ROAD_PLAYER_Y - ROAD_VANISH_Y;
-  const ROAD_WIDTH_SCALE = 2.1;
+  const ROAD_HORIZON_SCALE = 0.1;
+  const ROAD_BOTTOM_STRETCH = 0;
 
   const scoreEl = document.getElementById('score');
   const coinsEl = document.getElementById('coins');
@@ -36,7 +38,7 @@
   let shockwaves = [];
   let spawn = 0;
   let speed = 300;
-  let playerY = 650;
+  let playerY = ROAD_PLAYER_Y;
   let jump = 0;
   let slide = 0;
   let power = '';
@@ -68,8 +70,21 @@
   // Small utilities and game lifecycle
   // ---------------------------------------------------------------------------
   const rand = (min, max) => Math.random() * (max - min) + min;
-  const roadBottomX = (x, scale = 1) =>
-    225 + (x - 225) * scale * (H - ROAD_VANISH_Y) / ROAD_PLAYER_DEPTH;
+  const roadProjectX = (x, y) => {
+    const progress = Math.max(0, (y - ROAD_VANISH_Y) / ROAD_PLAYER_DEPTH);
+    const beyondPlayer = Math.max(0, progress - 1);
+    const perspective = ROAD_HORIZON_SCALE
+      + (1 - ROAD_HORIZON_SCALE) * progress
+      + ROAD_BOTTOM_STRETCH * beyondPlayer;
+    return 225 + (x - 225) * perspective;
+  };
+
+  function traceRoadLine(x) {
+    for (let y = ROAD_VANISH_Y + 16; y <= H; y += 16) {
+      ctx.lineTo(roadProjectX(x, y), y);
+    }
+    ctx.lineTo(roadProjectX(x, H), H);
+  }
 
   function toast(message) {
     toastEl.textContent = message;
@@ -91,7 +106,7 @@
     power = '';
     powerTime = 0;
     roadOffset = 0;
-    playerY = 650;
+    playerY = ROAD_PLAYER_Y;
     animTime = 0;
     carLean = 0;
     crashing = false;
@@ -240,12 +255,7 @@
         for (let windowX = 0; windowX < 2; windowX += 1) {
           ctx.fillStyle = '#f7d98b';
           ctx.globalAlpha = 0.6;
-          ctx.fillRect(
-            x + 9 + windowX * 18,
-            260 - buildingHeight * 0.35 + windowY * 19,
-            7,
-            9,
-          );
+          ctx.fillRect(x + 9 + windowX * 18, 260 - buildingHeight * 0.35 + windowY * 19, 7, 9);
           ctx.globalAlpha = 1;
         }
       }
@@ -263,27 +273,36 @@
     }
     ctx.globalAlpha = 1;
 
-    // Perspective road and shoulders share a centered vanishing point.
+    // Road edges and lane dividers end across the same fogged horizon band.
     ctx.fillStyle = '#28343e';
     ctx.beginPath();
-    ctx.moveTo(225, ROAD_VANISH_Y);
-    ctx.lineTo(roadBottomX(450, ROAD_WIDTH_SCALE), H);
-    ctx.lineTo(roadBottomX(0, ROAD_WIDTH_SCALE), H);
+    ctx.moveTo(roadProjectX(450, ROAD_VANISH_Y), ROAD_VANISH_Y);
+    traceRoadLine(450);
+    for (let y = H; y >= ROAD_VANISH_Y; y -= 16) {
+      ctx.lineTo(roadProjectX(0, y), y);
+    }
+    ctx.lineTo(roadProjectX(450, ROAD_VANISH_Y), ROAD_VANISH_Y);
     ctx.closePath();
     ctx.fill();
 
     ctx.fillStyle = '#35444e';
     ctx.beginPath();
-    ctx.moveTo(225, ROAD_VANISH_Y);
-    ctx.lineTo(roadBottomX(35, ROAD_WIDTH_SCALE), H);
-    ctx.lineTo(roadBottomX(0, ROAD_WIDTH_SCALE), H);
+    ctx.moveTo(roadProjectX(0, ROAD_VANISH_Y), ROAD_VANISH_Y);
+    traceRoadLine(35);
+    for (let y = H; y >= ROAD_VANISH_Y; y -= 16) {
+      ctx.lineTo(roadProjectX(0, y), y);
+    }
+    ctx.lineTo(roadProjectX(0, ROAD_VANISH_Y), ROAD_VANISH_Y);
     ctx.closePath();
     ctx.fill();
 
     ctx.beginPath();
-    ctx.moveTo(225, ROAD_VANISH_Y);
-    ctx.lineTo(roadBottomX(450, ROAD_WIDTH_SCALE), H);
-    ctx.lineTo(roadBottomX(415, ROAD_WIDTH_SCALE), H);
+    ctx.moveTo(roadProjectX(450, ROAD_VANISH_Y), ROAD_VANISH_Y);
+    traceRoadLine(450);
+    for (let y = H; y >= ROAD_VANISH_Y; y -= 16) {
+      ctx.lineTo(roadProjectX(415, y), y);
+    }
+    ctx.lineTo(roadProjectX(450, ROAD_VANISH_Y), ROAD_VANISH_Y);
     ctx.closePath();
     ctx.fill();
 
@@ -295,11 +314,20 @@
 
     for (const x of [150, 300]) {
       ctx.beginPath();
-      ctx.moveTo(225, ROAD_VANISH_Y);
-      ctx.lineTo(roadBottomX(x), H);
+      ctx.moveTo(roadProjectX(x, ROAD_VANISH_Y), ROAD_VANISH_Y);
+      traceRoadLine(x);
       ctx.stroke();
     }
     ctx.setLineDash([]);
+    ctx.shadowBlur = 0;
+
+    // A soft winter haze blurs the distant end of the road into the skyline.
+    const horizonHaze = ctx.createLinearGradient(0, ROAD_VANISH_Y, 0, 390);
+    horizonHaze.addColorStop(0, 'rgba(198, 220, 215, 0.72)');
+    horizonHaze.addColorStop(0.42, 'rgba(198, 220, 215, 0.35)');
+    horizonHaze.addColorStop(1, 'rgba(198, 220, 215, 0)');
+    ctx.fillStyle = horizonHaze;
+    ctx.fillRect(0, ROAD_VANISH_Y, W, 260);
 
     // Christmas garland above the road.
     ctx.strokeStyle = '#d9b75d';
@@ -365,7 +393,8 @@
 
   function drawCar(x, y) {
     const width = 130;
-    const height = 145;
+    // Correct most of the import stretch while keeping the car's road presence.
+    const height = 132;
     const carY = y - 8
       + (jump ? -Math.sin(jump * Math.PI) * 95 : 0)
       + Math.sin(animTime * 4) * 0.8;
@@ -383,11 +412,11 @@
     ctx.globalAlpha = 1;
 
     if (powerTime > 0 && !crashing) {
-      drawNitro(x + shake, drawY, rotation);
+      drawNitro(x + shake, drawY, rotation, height);
     }
   }
 
-  function drawNitro(x, y, rotation) {
+  function drawNitro(x, y, rotation, carHeight) {
     const flicker = Math.sin(animTime * 31) * 2.5 + Math.sin(animTime * 19) * 1.5;
 
     // The Audi's twin exhausts sit on the left side of its rear bumper.
@@ -396,7 +425,7 @@
     ctx.rotate(rotation);
 
     for (const offset of [-34, -28]) {
-      const baseY = 52;
+      const baseY = 52 * (carHeight / 145);
       const length = 25 + flicker;
 
       ctx.save();
@@ -427,13 +456,16 @@
   function drawItem(item) {
     const progress = Math.max(0, (item.y - ROAD_VANISH_Y) / ROAD_PLAYER_DEPTH);
     const scale = 0.28 + Math.min(1, progress) * 0.82;
-    const x = 225 + (lanes[item.lane] - 225) * progress;
+    // Project the lane center at the item's depth so it stays inside the
+    // narrowing road from spawn through the player area.
+    const x = roadProjectX(lanes[item.lane], item.y);
     const size = item.type === 'halter' ? 78 : 62;
+    const height = item.type === 'halter' ? size * 0.72 : size * 1.15;
     const bob = Math.sin(animTime * 2.8 + item.lane * 1.7 + item.y * 0.008)
       * Math.min(1.5, 0.5 + scale * 0.5);
     const tilt = Math.sin(animTime * 1.8 + item.y * 0.006 + item.lane) * 0.025;
 
-    drawAsset(item.type, x, item.y + bob, size * scale, size * 1.15 * scale, tilt);
+    drawAsset(item.type, x, item.y + bob, size * scale, height * scale, tilt);
   }
 
   function draw() {
@@ -502,7 +534,12 @@
       const item = items[i];
       item.y += gameSpeed * dt;
 
-      if (item.y > 600 && item.y < 710 && item.lane === lane && !item.passed) {
+      if (
+        item.y > playerY - 50
+        && item.y < playerY + 60
+        && item.lane === lane
+        && !item.passed
+      ) {
         item.passed = true;
         items.splice(i, 1);
 
