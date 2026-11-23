@@ -46,7 +46,7 @@
   let roadOffset = 0;
   let toastTimer = 0;
   let animTime = 0;
-  let carLean = 0;
+  let escapeOffset = 0;
   let crashing = false;
   let crashTimer = 0;
 
@@ -76,7 +76,12 @@
     const perspective = ROAD_HORIZON_SCALE
       + (1 - ROAD_HORIZON_SCALE) * progress
       + ROAD_BOTTOM_STRETCH * beyondPlayer;
-    return 225 + (x - 225) * perspective;
+    // Keep the selected lane under the car near the bottom, while the distant
+    // escape point moves opposite the steering direction.
+    const laneShift = lanes[lane] - 225;
+    // A linear perspective shift keeps each road line straight at every depth.
+    const turnSweep = escapeOffset * (1 - progress);
+    return 225 + (x - 225 - laneShift) * perspective + turnSweep;
   };
 
   function traceRoadLine(x) {
@@ -108,7 +113,7 @@
     roadOffset = 0;
     playerY = ROAD_PLAYER_Y;
     animTime = 0;
-    carLean = 0;
+    escapeOffset = 0;
     crashing = false;
     crashTimer = 0;
 
@@ -244,6 +249,10 @@
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, W, H);
 
+    // Distant scenery follows the camera more slowly than the road.
+    ctx.save();
+    ctx.translate(escapeOffset * 0.2, 0);
+
     // Winter skyline and lit windows.
     for (let i = 0; i < 9; i += 1) {
       const x = i * 58 - 8;
@@ -272,6 +281,7 @@
       ctx.fill();
     }
     ctx.globalAlpha = 1;
+    ctx.restore();
 
     // Road edges and lane dividers end across the same fogged horizon band.
     ctx.fillStyle = '#28343e';
@@ -400,8 +410,7 @@
       + Math.sin(animTime * 4) * 0.8;
     const shake = crashing ? Math.sin(animTime * 65) * 7 : 0;
     const drawY = carY + (crashing ? Math.sin(animTime * 40) * 3 : 0);
-    const rotation = carLean
-      + Math.sin(animTime * 2) * 0.006
+    const rotation = Math.sin(animTime * 2) * 0.006
       + (crashing ? Math.sin(animTime * 24) * 0.1 : 0);
 
     if (crashing && Math.floor(animTime * 18) % 2 === 0) {
@@ -472,7 +481,7 @@
     drawBackground();
     drawWindEffect();
     items.sort((a, b) => a.y - b.y).forEach(drawItem);
-    drawCar(lanes[lane], playerY);
+    drawCar(225, playerY);
     drawParticles();
   }
 
@@ -503,8 +512,8 @@
       : 1;
     roadOffset += gameSpeed * dt * roadMotion;
 
-    const leanTarget = lane === 0 ? -0.025 : lane === 2 ? 0.025 : 0;
-    carLean += (leanTarget - carLean) * Math.min(1, dt * 8);
+    const escapeTarget = (1 - lane) * 1;
+    escapeOffset += (escapeTarget - escapeOffset) * (1 - Math.exp(-dt * 3.5));
     updateParticles(dt);
 
     if (crashing) {
@@ -546,21 +555,21 @@
         if (item.type === 'porto') {
           coins += 1;
           score += 25;
-          burst(lanes[lane], item.y, '#38bdf8', 14);
+          burst(225, item.y, '#38bdf8', 14);
           toast('+25 · FC PORTO');
         } else if (item.type === 'halter') {
           power = 'GYM';
           powerTime = 5;
-          burst(lanes[lane], item.y, '#f3d46b', 18);
+          burst(225, item.y, '#f3d46b', 18);
           toast('POWER-UP · GYM 💪');
         } else if (powerTime > 0) {
-          impact(lanes[lane], playerY - 8);
+          impact(225, playerY - 8);
           toast('POWER-UP SALVOU-TE!');
         } else {
           crashing = true;
           crashTimer = 0.62;
-          burst(lanes[lane], playerY - 8, '#ff805c', 26);
-          burst(lanes[lane], playerY - 8, '#f3d46b', 12);
+          burst(225, playerY - 8, '#ff805c', 26);
+          burst(225, playerY - 8, '#f3d46b', 12);
           return;
         }
       }
@@ -601,11 +610,9 @@
 
     if (direction === 'left') {
       lane = Math.max(0, lane - 1);
-      carLean = -0.09;
     }
     if (direction === 'right') {
       lane = Math.min(2, lane + 1);
-      carLean = 0.09;
     }
     if (direction === 'up' && jump === 0) jump = 1;
     if (direction === 'down') slide = 0.8;
