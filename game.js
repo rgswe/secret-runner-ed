@@ -99,6 +99,8 @@
     length: rand(48, 120),
     color: Math.random() < 0.5 ? '#43f5f2' : '#ff4fc8',
   }));
+  const allPowerRays = [...powerRays, ...lowerPowerRays, ...horizonPowerRays];
+  let powerRaysDraining = false;
   const roadProjectX = (x, y) => {
     const progress = Math.max(0, (y - ROAD_VANISH_Y) / ROAD_PLAYER_DEPTH);
     const beyondPlayer = Math.max(0, progress - 1);
@@ -145,6 +147,7 @@
     slide = 0;
     power = '';
     powerTime = 0;
+    powerRaysDraining = false;
     roadOffset = 0;
     playerY = ROAD_PLAYER_Y;
     animTime = 0;
@@ -638,7 +641,10 @@
     }
     ctx.restore();
 
-    if (powerTime <= 0 || crashing) {
+    const raysStillDraining = powerRaysDraining && allPowerRays.some(
+      (ray) => animTime * ray.speed + ray.phase < ray.drainAt,
+    );
+    if ((powerTime <= 0 && !raysStillDraining) || crashing) {
       ctx.restore();
       return;
     }
@@ -691,13 +697,15 @@
     // Short, bright ray segments travel outward from the moving escape point.
     ctx.filter = 'blur(2px)';
     for (const ray of powerRays) {
+      const cycle = animTime * ray.speed + ray.phase;
+      if (powerRaysDraining && cycle >= ray.drainAt) continue;
       const dx = Math.cos(ray.angle);
       const dy = Math.sin(ray.angle);
       const reach = Math.min(
         dx > 0 ? (W - centerX) / dx : dx < 0 ? -centerX / dx : Infinity,
         dy > 0 ? (H - centerY) / dy : dy < 0 ? -centerY / dy : Infinity,
       );
-      const progress = (animTime * ray.speed + ray.phase) % 1;
+      const progress = cycle % 1;
       const start = progress * reach;
       const end = Math.min(reach, start + ray.length);
 
@@ -714,13 +722,15 @@
 
     // A matching fan travels down from the road's moving vanishing point.
     for (const ray of lowerPowerRays) {
+      const cycle = animTime * ray.speed + ray.phase;
+      if (powerRaysDraining && cycle >= ray.drainAt) continue;
       const dx = Math.cos(ray.angle);
       const dy = Math.sin(ray.angle);
       const reach = Math.min(
         dx > 0 ? (W - centerX) / dx : dx < 0 ? -centerX / dx : Infinity,
         (H - centerY) / dy,
       );
-      const progress = (animTime * ray.speed + ray.phase) % 1;
+      const progress = cycle % 1;
       const start = progress * reach;
       const end = Math.min(reach, start + ray.length);
 
@@ -737,8 +747,10 @@
 
     // A few rays travel horizontally along the vanishing line itself.
     for (const ray of horizonPowerRays) {
+      const cycle = animTime * ray.speed + ray.phase;
+      if (powerRaysDraining && cycle >= ray.drainAt) continue;
       const reach = ray.direction > 0 ? W - centerX : centerX;
-      const progress = (animTime * ray.speed + ray.phase) % 1;
+      const progress = cycle % 1;
       const start = progress * reach;
       const end = Math.min(reach, start + ray.length);
 
@@ -927,6 +939,10 @@
       if (powerTime <= 0) {
         power = '';
         powerEl.textContent = '—';
+        powerRaysDraining = true;
+        for (const ray of allPowerRays) {
+          ray.drainAt = Math.ceil(animTime * ray.speed + ray.phase);
+        }
       }
     }
 
@@ -954,6 +970,7 @@
         } else if (item.type === 'halter') {
           power = 'GYM';
           powerTime = 5;
+          powerRaysDraining = false;
           burst(225, item.y, '#f3d46b', 18);
           toast('POWER-UP · GYM 💪');
         } else if (powerTime > 0) {
