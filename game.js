@@ -89,21 +89,21 @@
     { side: 'right', x: 366, y: 264, phase: rand(0, 6), scale: 0.66, driftRate: rand(0.16, 0.25) },
     { side: 'right', x: 414, y: 328, phase: rand(0, 6), scale: 0.48, driftRate: rand(0.16, 0.25) },
   ];
-  const powerRays = Array.from({ length: 130 }, () => ({
+  const powerRays = Array.from({ length: 65 }, () => ({
     angle: rand(Math.PI, Math.PI * 2),
     phase: rand(0, 1),
     speed: rand(0.45, 0.82),
     length: rand(48, 120),
     color: Math.random() < 0.5 ? '#43f5f2' : '#ff4fc8',
   }));
-  const lowerPowerRays = Array.from({ length: 130 }, () => ({
+  const lowerPowerRays = Array.from({ length: 65 }, () => ({
     angle: rand(0, Math.PI),
     phase: rand(0, 1),
     speed: rand(0.45, 0.82),
     length: rand(48, 120),
     color: Math.random() < 0.5 ? '#43f5f2' : '#ff4fc8',
   }));
-  const horizonPowerRays = Array.from({ length: 32 }, () => ({
+  const horizonPowerRays = Array.from({ length: 16 }, () => ({
     direction: Math.random() < 0.5 ? -1 : 1,
     phase: rand(0, 1),
     speed: rand(0.45, 0.82),
@@ -904,26 +904,6 @@
     drawCar(225, playerY);
     drawParticles();
 
-    // A brief, low-opacity glow on each beat, phased to the playing track.
-    const beatPhase = backgroundMusic.currentTime % beatDuration;
-    const beatProgress = beatPhase / beatDuration;
-    const fadeOut = Math.exp(-beatPhase / 0.8);
-    const beatEnvelope = 0.3 + 0.7 * fadeOut;
-    const beatGlow = 0.07 * beatEnvelope;
-    ctx.fillStyle = `rgba(145, 55, 255, ${beatGlow})`;
-    ctx.fillRect(0, 0, W, H);
-
-    const vignette = ctx.createRadialGradient(
-      W / 2, H / 2, H * 0.2,
-      W / 2, H / 2, H * 0.72,
-    );
-    vignette.addColorStop(0, 'rgba(24, 0, 55, 0)');
-    vignette.addColorStop(1, `rgba(24, 0, 55, ${beatEnvelope * 0.72})`);
-    ctx.save();
-    ctx.filter = 'blur(5px)';
-    ctx.fillStyle = vignette;
-    ctx.fillRect(-15, -15, W + 30, H + 30);
-    ctx.restore();
   }
 
   // ---------------------------------------------------------------------------
