@@ -26,6 +26,17 @@
   const endPanel = document.getElementById('endPanel');
   const toastEl = document.getElementById('toast');
 
+  const backgroundMusic = new Audio('assets/music.mp3');
+  backgroundMusic.loop = true;
+  backgroundMusic.preload = 'auto';
+  const pausedMusicVolume = 0.08;
+  const playingMusicVolume = 0.65;
+  const beatDuration = 60 / 145;
+  backgroundMusic.volume = pausedMusicVolume;
+  backgroundMusic.play().catch(() => {
+    // Browsers may block autoplay until the player interacts with the page.
+  });
+
   // ---------------------------------------------------------------------------
   // Game state
   // ---------------------------------------------------------------------------
@@ -164,12 +175,19 @@
     reset();
     overlay.classList.add('hidden');
     running = true;
+    backgroundMusic.currentTime = 0;
+    backgroundMusic.volume = playingMusicVolume;
+    backgroundMusic.play().catch(() => {
+      // Browsers may block playback until a user gesture is received.
+    });
     last = performance.now();
+    draw();
     requestAnimationFrame(loop);
   }
 
   function finish() {
     running = false;
+    backgroundMusic.volume = pausedMusicVolume;
     document.getElementById('result').textContent =
       `Percorreste ${Math.floor(score)} metros e apanhaste ${coins} emblemas do FC Porto.`;
     overlay.classList.remove('hidden');
@@ -885,6 +903,27 @@
     items.sort((a, b) => a.y - b.y).forEach(drawItem);
     drawCar(225, playerY);
     drawParticles();
+
+    // A brief, low-opacity glow on each beat, phased to the playing track.
+    const beatPhase = backgroundMusic.currentTime % beatDuration;
+    const beatProgress = beatPhase / beatDuration;
+    const fadeOut = Math.exp(-beatPhase / 0.8);
+    const beatEnvelope = 0.3 + 0.7 * fadeOut;
+    const beatGlow = 0.07 * beatEnvelope;
+    ctx.fillStyle = `rgba(145, 55, 255, ${beatGlow})`;
+    ctx.fillRect(0, 0, W, H);
+
+    const vignette = ctx.createRadialGradient(
+      W / 2, H / 2, H * 0.2,
+      W / 2, H / 2, H * 0.72,
+    );
+    vignette.addColorStop(0, 'rgba(24, 0, 55, 0)');
+    vignette.addColorStop(1, `rgba(24, 0, 55, ${beatEnvelope * 0.72})`);
+    ctx.save();
+    ctx.filter = 'blur(5px)';
+    ctx.fillStyle = vignette;
+    ctx.fillRect(-15, -15, W + 30, H + 30);
+    ctx.restore();
   }
 
   // ---------------------------------------------------------------------------

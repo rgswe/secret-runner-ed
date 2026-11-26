@@ -17,6 +17,7 @@ Open `index.html` in a modern browser. The project is static: it has no install 
 | `assets/collectibles/fcp.svg` | FC Porto collectible. |
 | `assets/obstacles/slb.svg`, `assets/obstacles/scp.svg` | Rival-shirt obstacles. |
 | `assets/powerup/halter.svg` | Gym power-up collectible. |
+| `assets/music.mp3` | Background music, looped during a run. |
 
 ## How the game is structured
 
@@ -88,6 +89,7 @@ Left and right select one of three lanes. Jump raises the drawn car briefly. Sli
 - **Collect and impact feedback:** colored particles burst outward and fade under simulated gravity. When protection deflects a rival, two expanding, fading rings appear with another particle burst.
 - **Nitro:** while the five-second power-up timer is active, road and items move 1.3 times faster, the distance score grows at the corresponding rate, and pale cyan wind streaks stream outward from the road's vanishing point toward the foreground. Flickering blue-white flames are drawn at the Audi's twin exhausts. The existing toast and HUD timer show when the effect is active.
 - **Interface:** the start/end panels float in and the car emoji on those panels floats gently. The canvas car and the panel emoji are separate visuals.
+- **Music pulse:** a faint glow follows the 145 BPM music beat during gameplay.
 
 Particles, waves, road movement, item animation, and game timers use the frame's elapsed time, so their duration is not tied to a particular monitor refresh rate. The CSS also reduces panel/car animation for users who enable reduced motion in their operating system; canvas gameplay effects are not currently disabled by that preference.
 
